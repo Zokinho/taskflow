@@ -83,6 +83,7 @@ model Calendar {
   icsUrl       String?
   color        String?
   isActive     Boolean          @default(true)
+  syncToken    String?
   lastSyncAt   DateTime?
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
@@ -111,6 +112,7 @@ model CalendarEvent {
   kidId    String?
   kid      Kid?     @relation(fields: [kidId], references: [id], onDelete: SetNull)
 
+  @@unique([calendarId, externalId])
   @@index([calendarId])
   @@index([startTime, endTime])
   @@index([kidId])

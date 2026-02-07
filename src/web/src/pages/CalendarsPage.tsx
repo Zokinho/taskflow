@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -7,7 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { CalendarCard } from '@/components/calendars/CalendarCard';
 import { CalendarForm } from '@/components/calendars/CalendarForm';
 import { EventList } from '@/components/calendars/EventList';
-import { useCalendars, useCreateCalendar, useUpdateCalendar, useDeleteCalendar } from '@/hooks/useCalendars';
+import { useCalendars, useCreateCalendar, useUpdateCalendar, useDeleteCalendar, useGoogleAuthUrl, useSyncCalendar } from '@/hooks/useCalendars';
 import type { Calendar } from '@/types';
 
 export function CalendarsPage() {
@@ -15,15 +16,64 @@ export function CalendarsPage() {
   const createCalendar = useCreateCalendar();
   const updateCalendar = useUpdateCalendar();
   const deleteCalendar = useDeleteCalendar();
+  const googleAuth = useGoogleAuthUrl();
+  const syncCalendar = useSyncCalendar();
 
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Calendar | null>(null);
   const [deleting, setDeleting] = useState<Calendar | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [banner, setBanner] = useState<string | null>(null);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('google-connected') === 'true') {
+      setBanner('Google Calendar connected successfully! Initial sync is running in the background.');
+      setSearchParams({}, { replace: true });
+    }
+    if (searchParams.get('google-error')) {
+      setBanner(`Google connection failed: ${searchParams.get('google-error')}`);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
+
+  function handleConnectGoogle() {
+    googleAuth.mutate(undefined, {
+      onSuccess: (data) => {
+        window.location.href = data.url;
+      },
+    });
+  }
+
+  function handleSync(calendarId: string) {
+    syncCalendar.mutate(calendarId, {
+      onSuccess: (result) => {
+        setBanner(`Sync complete: ${result.created} created, ${result.updated} updated, ${result.deleted} deleted`);
+      },
+      onError: () => {
+        setBanner('Sync failed. Please try again.');
+      },
+    });
+  }
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      {banner && (
+        <div className="rounded-lg bg-primary-50 border border-primary-200 px-4 py-3 text-sm text-primary-800 flex justify-between items-start">
+          <span>{banner}</span>
+          <button onClick={() => setBanner(null)} className="ml-4 text-primary-500 hover:text-primary-700 font-bold cursor-pointer">&times;</button>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2">
+        <Button
+          variant="secondary"
+          onClick={handleConnectGoogle}
+          disabled={googleAuth.isPending}
+        >
+          {googleAuth.isPending ? 'Connecting...' : 'Connect Google'}
+        </Button>
         <Button onClick={() => setShowCreate(true)}>Add Calendar</Button>
       </div>
 
@@ -40,6 +90,8 @@ export function CalendarsPage() {
               onEdit={() => setEditing(cal)}
               expanded={expandedId === cal.id}
               onToggleEvents={() => setExpandedId(expandedId === cal.id ? null : cal.id)}
+              onSync={cal.provider === 'GOOGLE' ? () => handleSync(cal.id) : undefined}
+              syncing={syncCalendar.isPending && syncCalendar.variables === cal.id}
             >
               <EventList calendarId={cal.id} />
             </CalendarCard>

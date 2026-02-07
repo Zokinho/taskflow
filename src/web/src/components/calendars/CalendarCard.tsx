@@ -8,10 +8,12 @@ interface CalendarCardProps {
   onEdit: () => void;
   onToggleEvents: () => void;
   expanded: boolean;
+  onSync?: () => void;
+  syncing?: boolean;
   children?: React.ReactNode;
 }
 
-export function CalendarCard({ calendar, onEdit, onToggleEvents, expanded, children }: CalendarCardProps) {
+export function CalendarCard({ calendar, onEdit, onToggleEvents, expanded, onSync, syncing, children }: CalendarCardProps) {
   return (
     <Card>
       <div className="flex items-start justify-between">
@@ -31,9 +33,20 @@ export function CalendarCard({ calendar, onEdit, onToggleEvents, expanded, child
             </p>
           )}
         </div>
-        <button onClick={onToggleEvents} className="text-sm text-primary-600 hover:underline cursor-pointer">
-          {expanded ? 'Hide events' : 'Events'}
-        </button>
+        <div className="flex items-center gap-2">
+          {onSync && (
+            <button
+              onClick={onSync}
+              disabled={syncing}
+              className="text-sm text-primary-600 hover:underline cursor-pointer disabled:opacity-50"
+            >
+              {syncing ? 'Syncing...' : 'Sync'}
+            </button>
+          )}
+          <button onClick={onToggleEvents} className="text-sm text-primary-600 hover:underline cursor-pointer">
+            {expanded ? 'Hide events' : 'Events'}
+          </button>
+        </div>
       </div>
       {expanded && <div className="mt-3 border-t border-gray-100 pt-3">{children}</div>}
     </Card>

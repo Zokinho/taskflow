@@ -45,3 +45,21 @@ export function useDeleteCalendar() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendars'] }),
   });
 }
+
+export function useGoogleAuthUrl() {
+  return useMutation({
+    mutationFn: () => api.get<{ url: string }>('/calendars/google/auth-url'),
+  });
+}
+
+export function useSyncCalendar() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post<{ created: number; updated: number; deleted: number }>(`/calendars/${id}/sync`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendars'] });
+      qc.invalidateQueries({ queryKey: ['calendarEvents'] });
+    },
+  });
+}

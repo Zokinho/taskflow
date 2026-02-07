@@ -8,6 +8,7 @@ import { TasksPage } from '@/pages/TasksPage';
 import { PeoplePage } from '@/pages/PeoplePage';
 import { CalendarsPage } from '@/pages/CalendarsPage';
 import { KidsPage } from '@/pages/KidsPage';
+import { RemindersPage } from '@/pages/RemindersPage';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import type { ReactNode } from 'react';
 
@@ -33,6 +34,7 @@ export function App() {
         <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
         <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
           <Route index element={<DashboardPage />} />
+          <Route path="reminders" element={<RemindersPage />} />
           <Route path="tasks" element={<TasksPage />} />
           <Route path="people" element={<PeoplePage />} />
           <Route path="calendars" element={<CalendarsPage />} />

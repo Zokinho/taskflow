@@ -43,3 +43,19 @@ export const PROVIDER_COLORS: Record<string, string> = {
   EXCHANGE: 'bg-indigo-100 text-indigo-700',
   PROTON_ICS: 'bg-purple-100 text-purple-700',
 };
+
+export const REMINDER_TYPE_LABELS: Record<string, string> = {
+  BIRTHDAY: 'Birthday',
+  FOLLOW_UP: 'Follow-up',
+  MORNING_BRIEFING: 'Morning Briefing',
+  EVENING_REVIEW: 'Evening Review',
+  CUSTOM: 'Custom',
+};
+
+export const REMINDER_TYPE_COLORS: Record<string, string> = {
+  BIRTHDAY: 'bg-pink-100 text-pink-700',
+  FOLLOW_UP: 'bg-amber-100 text-amber-700',
+  MORNING_BRIEFING: 'bg-sky-100 text-sky-700',
+  EVENING_REVIEW: 'bg-indigo-100 text-indigo-700',
+  CUSTOM: 'bg-gray-100 text-gray-700',
+};

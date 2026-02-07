@@ -7,6 +7,7 @@ import taskRoutes from "./routes/tasks";
 import peopleRoutes from "./routes/people";
 import calendarRoutes from "./routes/calendars";
 import kidRoutes from "./routes/kids";
+import reminderRoutes from "./routes/reminders";
 import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
@@ -25,6 +26,7 @@ app.use("/tasks", taskRoutes);
 app.use("/people", peopleRoutes);
 app.use("/calendars", calendarRoutes);
 app.use("/kids", kidRoutes);
+app.use("/reminders", reminderRoutes);
 
 app.use(errorHandler);
 

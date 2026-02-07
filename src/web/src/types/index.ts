@@ -89,6 +89,20 @@ export interface Kid {
   updatedAt: string;
 }
 
+export interface Reminder {
+  id: string;
+  userId: string;
+  type: ReminderType;
+  title: string;
+  message: string | null;
+  scheduledAt: string;
+  sentAt: string | null;
+  personId: string | null;
+  kidId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
 // API response types
 export interface AuthResponse {
   user: User;

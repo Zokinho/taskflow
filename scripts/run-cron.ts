@@ -1,0 +1,51 @@
+import "dotenv/config";
+import cron from "node-cron";
+import {
+  generateBirthdayReminders,
+  generateFollowUpReminders,
+  generateMorningBriefings,
+  generateEveningReviews,
+  deliverPendingReminders,
+} from "../src/services/reminders";
+import { getBot } from "../src/services/telegram";
+
+function logJob(name: string, fn: () => Promise<number>) {
+  return async () => {
+    try {
+      const count = await fn();
+      if (count > 0) console.log(`[cron] ${name}: ${count}`);
+    } catch (err) {
+      console.error(`[cron] ${name} failed:`, err);
+    }
+  };
+}
+
+// Birthday reminders — daily at 00:05
+cron.schedule("5 0 * * *", logJob("birthdays", generateBirthdayReminders));
+
+// Follow-up nudges — daily at 00:10
+cron.schedule("10 0 * * *", logJob("follow-ups", generateFollowUpReminders));
+
+// Morning briefings — daily at 06:00 UTC
+cron.schedule("0 6 * * *", logJob("morning", generateMorningBriefings));
+
+// Evening reviews — daily at 20:00 UTC
+cron.schedule("0 20 * * *", logJob("evening", generateEveningReviews));
+
+// Deliver pending reminders — every 5 minutes
+cron.schedule("*/5 * * * *", logJob("deliver", deliverPendingReminders));
+
+console.log("[cron] Reminder jobs scheduled");
+
+// Optionally start bot polling in same process
+if (process.env.START_BOT_WITH_CRON === "true") {
+  const bot = getBot();
+  if (bot) {
+    // Import bot commands (registers handlers)
+    import("../src/bot/index").then(() => {
+      console.log("[cron] Bot started alongside cron");
+    });
+  } else {
+    console.warn("[cron] START_BOT_WITH_CRON=true but no TELEGRAM_BOT_TOKEN");
+  }
+}

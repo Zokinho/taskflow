@@ -1,11 +1,14 @@
+import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ReminderCard } from '@/components/reminders/ReminderCard';
 import { PRIORITY_COLORS, PRIORITY_LABELS } from '@/lib/constants';
 import { useTasks } from '@/hooks/useTasks';
 import { usePeople, useMarkContacted } from '@/hooks/usePeople';
 import { useKids } from '@/hooks/useKids';
+import { useReminders, useDismissReminder } from '@/hooks/useReminders';
 
 function StatsCard({ label, value }: { label: string; value: number | string }) {
   return (
@@ -20,9 +23,15 @@ export function DashboardPage() {
   const { data: tasks, isLoading: tasksLoading } = useTasks();
   const { data: people, isLoading: peopleLoading } = usePeople();
   const { data: kids, isLoading: kidsLoading } = useKids();
+  const { data: reminders } = useReminders({ limit: '5' });
   const markContacted = useMarkContacted();
+  const dismissReminder = useDismissReminder();
 
   if (tasksLoading || peopleLoading || kidsLoading) return <LoadingSpinner />;
+
+  const activeReminders = reminders?.filter(
+    (r) => !(r.metadata as Record<string, unknown> | null)?.dismissedAt
+  ).slice(0, 5) ?? [];
 
   const activeTasks = tasks?.filter((t) => t.status === 'TODO' || t.status === 'IN_PROGRESS') ?? [];
   const today = new Date().toISOString().slice(0, 10);
@@ -49,6 +58,27 @@ export function DashboardPage() {
         <StatsCard label="Follow-ups Needed" value={needsFollowUp.length} />
         <StatsCard label="Kids" value={kids?.length ?? 0} />
       </div>
+
+      {activeReminders.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-gray-700">Recent Reminders</h3>
+            <Link to="/reminders" className="text-xs text-primary-600 hover:underline">
+              View All
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {activeReminders.map((r) => (
+              <ReminderCard
+                key={r.id}
+                reminder={r}
+                onDismiss={(id) => dismissReminder.mutate(id)}
+                dismissing={dismissReminder.isPending}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {upcoming.length > 0 && (
         <section>

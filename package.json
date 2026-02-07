@@ -26,6 +26,7 @@
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^4.2.1",
+    "node-ical": "^0.25.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {

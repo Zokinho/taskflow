@@ -114,7 +114,7 @@ export function CalendarsPage() {
               onEdit={() => setEditing(cal)}
               expanded={expandedId === cal.id}
               onToggleEvents={() => setExpandedId(expandedId === cal.id ? null : cal.id)}
-              onSync={['GOOGLE', 'MICROSOFT', 'EXCHANGE'].includes(cal.provider) ? () => handleSync(cal.id) : undefined}
+              onSync={['GOOGLE', 'MICROSOFT', 'EXCHANGE', 'PROTON_ICS'].includes(cal.provider) ? () => handleSync(cal.id) : undefined}
               syncing={syncCalendar.isPending && syncCalendar.variables === cal.id}
             >
               <EventList calendarId={cal.id} />

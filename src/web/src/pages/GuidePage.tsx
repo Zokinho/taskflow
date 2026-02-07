@@ -107,6 +107,20 @@ export function GuidePage() {
             </p>
           </div>
           <div>
+            <h4 className="font-medium text-gray-800 mb-1">Proton Calendar</h4>
+            <p>
+              Proton Calendar doesn't offer an API, so TaskFlow syncs via ICS feed (read-only).
+              To set it up:
+            </p>
+            <ol className="list-decimal list-inside space-y-1 pl-1 mt-1">
+              <li>In Proton Calendar, go to <span className="font-medium">Settings &rarr; Calendars</span>.</li>
+              <li>Select the calendar you want to share and click <span className="font-medium">Share via link</span>.</li>
+              <li>Create a link and copy the <span className="font-medium">ICS URL</span> (ends in <span className="font-mono text-primary-600">.ics</span>).</li>
+              <li>In TaskFlow, click <span className="font-medium">Add Calendar</span>, select <span className="font-medium">Proton ICS</span>, and paste the URL.</li>
+              <li>Hit <span className="font-medium">Sync</span> to pull events. Re-sync anytime to get updates.</li>
+            </ol>
+          </div>
+          <div>
             <h4 className="font-medium text-gray-800 mb-1">Syncing</h4>
             <p>
               After connecting, use the <span className="font-medium">Sync</span> button on any

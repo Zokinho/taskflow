@@ -1,5 +1,6 @@
 import { google, calendar_v3 } from "googleapis";
 import { Prisma } from "@prisma/client";
+import ical, { VEvent, ParameterValue } from "node-ical";
 import { prisma } from "../lib/prisma";
 import { getAuthenticatedClient } from "./google-auth";
 import { refreshMicrosoftToken } from "./microsoft-auth";
@@ -27,6 +28,10 @@ export async function syncCalendar(calendarId: string): Promise<SyncResult> {
 
   if (calendar.provider === "MICROSOFT" || calendar.provider === "EXCHANGE") {
     return syncMicrosoftCalendar(calendar);
+  }
+
+  if (calendar.provider === "PROTON_ICS") {
+    return syncProtonIcsCalendar(calendar);
   }
 
   throw new Error(`Sync not implemented for provider: ${calendar.provider}`);
@@ -411,4 +416,82 @@ function isMicrosoftSyncExpired(err: unknown): boolean {
     return code === 410 || code === 404;
   }
   return false;
+}
+
+// --- Proton ICS Polling ---
+
+function paramVal(v: ParameterValue | undefined): string {
+  if (v == null) return "";
+  if (typeof v === "string") return v;
+  return v.val;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function syncProtonIcsCalendar(calendar: any): Promise<SyncResult> {
+  if (!calendar.icsUrl) {
+    throw new Error("Calendar has no ICS URL configured");
+  }
+
+  // Fetch the ICS feed
+  const res = await fetch(calendar.icsUrl);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch ICS feed: ${res.status} ${res.statusText}`);
+  }
+  const icsText = await res.text();
+
+  // Parse the ICS data
+  const parsed = ical.parseICS(icsText);
+
+  const kids = calendar.user.kids;
+  let created = 0;
+  let updated = 0;
+
+  // Collect all UIDs we see in the feed for deletion detection
+  const seenExternalIds = new Set<string>();
+
+  for (const [, component] of Object.entries(parsed)) {
+    if (!component || component.type !== "VEVENT") continue;
+    const event = component as VEvent;
+    if (!event.uid) continue;
+
+    seenExternalIds.add(event.uid);
+
+    const startTime = event.start ? new Date(event.start) : null;
+    const endTime = event.end ? new Date(event.end) : startTime;
+    if (!startTime || !endTime) continue;
+
+    const allDay = event.datetype === "date";
+    const title = paramVal(event.summary) || "(No title)";
+
+    const result = await upsertEvent(calendar.id, event.uid, {
+      title,
+      description: paramVal(event.description) || null,
+      location: paramVal(event.location) || null,
+      startTime,
+      endTime,
+      allDay,
+      kidId: autoTagKid(title, kids),
+      raw: { uid: event.uid, summary: title, start: startTime.toISOString(), end: endTime.toISOString() } as unknown as Prisma.InputJsonValue,
+    });
+
+    if (result === "created") created++;
+    else updated++;
+  }
+
+  // Delete events that are no longer in the feed
+  const existingEvents = await prisma.calendarEvent.findMany({
+    where: { calendarId: calendar.id },
+    select: { externalId: true },
+  });
+
+  let deleted = 0;
+  for (const existing of existingEvents) {
+    if (existing.externalId && !seenExternalIds.has(existing.externalId)) {
+      deleted += await deleteEvent(calendar.id, existing.externalId);
+    }
+  }
+
+  // No sync token for ICS — just update lastSyncAt
+  await saveSyncState(calendar.id, null, null);
+  return { created, updated, deleted };
 }

@@ -315,7 +315,7 @@ router.post(
     });
     if (!calendar) throw new AppError(404, "Calendar not found");
 
-    const syncable = ["GOOGLE", "MICROSOFT", "EXCHANGE"];
+    const syncable = ["GOOGLE", "MICROSOFT", "EXCHANGE", "PROTON_ICS"];
     if (!syncable.includes(calendar.provider)) {
       throw new AppError(400, `Sync is not supported for ${calendar.provider} calendars`);
     }

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+prisma/*.db
+*.tsbuildinfo
+*.log
+*:Zone.Identifier
+src/web/node_modules/
+src/web/dist/

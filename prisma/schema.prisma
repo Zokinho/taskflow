@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Enums ---
+
+enum CalendarProvider {
+  GOOGLE
+  MICROSOFT
+  EXCHANGE
+  PROTON_ICS
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ReminderType {
+  BIRTHDAY
+  FOLLOW_UP
+  MORNING_BRIEFING
+  EVENING_REVIEW
+  CUSTOM
+}
+
+// --- Models ---
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  name           String
+  telegramChatId String?  @unique
+  timezone       String   @default("UTC")
+  preferences    Json     @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  calendars     Calendar[]
+  tasks         Task[]
+  people        Person[]
+  kids          Kid[]
+  reminders     Reminder[]
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model Calendar {
+  id           String           @id @default(cuid())
+  userId       String
+  provider     CalendarProvider
+  name         String
+  externalId   String?
+  accessToken  String?
+  refreshToken String?
+  icsUrl       String?
+  color        String?
+  isActive     Boolean          @default(true)
+  lastSyncAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events CalendarEvent[]
+
+  @@index([userId])
+}
+
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  calendarId  String
+  externalId  String?
+  title       String
+  description String?
+  location    String?
+  startTime   DateTime
+  endTime     DateTime
+  allDay      Boolean  @default(false)
+  raw         Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  calendar Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  kidId    String?
+  kid      Kid?     @relation(fields: [kidId], references: [id], onDelete: SetNull)
+
+  @@index([calendarId])
+  @@index([startTime, endTime])
+  @@index([kidId])
+}
+
+model Task {
+  id            String       @id @default(cuid())
+  userId        String
+  title         String
+  description   String?
+  status        TaskStatus   @default(TODO)
+  priority      TaskPriority @default(MEDIUM)
+  dueDate       DateTime?
+  scheduledStart DateTime?
+  scheduledEnd   DateTime?
+  estimatedMins  Int?
+  completedAt   DateTime?
+  notes         String?
+  tags          String[]     @default([])
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, dueDate])
+}
+
+model Person {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  email         String?
+  phone         String?
+  birthday      DateTime?
+  notes         String?
+  lastContactAt DateTime?
+  followUpDays  Int?
+  tags          String[]  @default([])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, birthday])
+}
+
+model Kid {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  birthday  DateTime?
+  notes     String?
+  keywords  String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events CalendarEvent[]
+
+  @@index([userId])
+}
+
+model Reminder {
+  id          String       @id @default(cuid())
+  userId      String
+  type        ReminderType
+  title       String
+  message     String?
+  scheduledAt DateTime
+  sentAt      DateTime?
+  personId    String?
+  kidId       String?
+  metadata    Json?
+  createdAt   DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([scheduledAt, sentAt])
+}

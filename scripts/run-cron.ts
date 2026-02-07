@@ -7,6 +7,7 @@ import {
   generateEveningReviews,
   deliverPendingReminders,
 } from "../src/services/reminders";
+import { syncAllCalendars } from "../src/services/calendar-sync";
 import { getBot } from "../src/services/telegram";
 
 function logJob(name: string, fn: () => Promise<number>) {
@@ -35,7 +36,10 @@ cron.schedule("0 20 * * *", logJob("evening", generateEveningReviews));
 // Deliver pending reminders — every 5 minutes
 cron.schedule("*/5 * * * *", logJob("deliver", deliverPendingReminders));
 
-console.log("[cron] Reminder jobs scheduled");
+// Calendar auto-sync — every 15 minutes
+cron.schedule("*/15 * * * *", logJob("calendar-sync", syncAllCalendars));
+
+console.log("[cron] Reminder and calendar-sync jobs scheduled");
 
 // Optionally start bot polling in same process
 if (process.env.START_BOT_WITH_CRON === "true") {

@@ -420,6 +420,24 @@ function isMicrosoftSyncExpired(err: unknown): boolean {
 
 // --- Proton ICS Polling ---
 
+export async function syncAllCalendars(): Promise<number> {
+  const calendars = await prisma.calendar.findMany({
+    where: { isActive: true },
+    select: { id: true, provider: true },
+  });
+
+  let synced = 0;
+  for (const cal of calendars) {
+    try {
+      await syncCalendar(cal.id);
+      synced++;
+    } catch (err) {
+      console.error(`[calendar-sync] Failed to sync calendar ${cal.id} (${cal.provider}):`, err);
+    }
+  }
+  return synced;
+}
+
 function paramVal(v: ParameterValue | undefined): string {
   if (v == null) return "";
   if (typeof v === "string") return v;

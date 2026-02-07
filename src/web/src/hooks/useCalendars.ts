@@ -52,6 +52,12 @@ export function useGoogleAuthUrl() {
   });
 }
 
+export function useMicrosoftAuthUrl() {
+  return useMutation({
+    mutationFn: () => api.get<{ url: string }>('/calendars/microsoft/auth-url'),
+  });
+}
+
 export function useSyncCalendar() {
   const qc = useQueryClient();
   return useMutation({

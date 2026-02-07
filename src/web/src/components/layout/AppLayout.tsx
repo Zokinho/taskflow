@@ -9,6 +9,7 @@ const titles: Record<string, string> = {
   '/people': 'People',
   '/calendars': 'Calendars',
   '/kids': 'Kids',
+  '/guide': 'Guide',
 };
 
 export function AppLayout() {

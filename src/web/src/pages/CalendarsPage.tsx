@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { CalendarCard } from '@/components/calendars/CalendarCard';
 import { CalendarForm } from '@/components/calendars/CalendarForm';
 import { EventList } from '@/components/calendars/EventList';
-import { useCalendars, useCreateCalendar, useUpdateCalendar, useDeleteCalendar, useGoogleAuthUrl, useSyncCalendar } from '@/hooks/useCalendars';
+import { useCalendars, useCreateCalendar, useUpdateCalendar, useDeleteCalendar, useGoogleAuthUrl, useMicrosoftAuthUrl, useSyncCalendar } from '@/hooks/useCalendars';
 import type { Calendar } from '@/types';
 
 export function CalendarsPage() {
@@ -17,6 +17,7 @@ export function CalendarsPage() {
   const updateCalendar = useUpdateCalendar();
   const deleteCalendar = useDeleteCalendar();
   const googleAuth = useGoogleAuthUrl();
+  const microsoftAuth = useMicrosoftAuthUrl();
   const syncCalendar = useSyncCalendar();
 
   const [showCreate, setShowCreate] = useState(false);
@@ -36,10 +37,26 @@ export function CalendarsPage() {
       setBanner(`Google connection failed: ${searchParams.get('google-error')}`);
       setSearchParams({}, { replace: true });
     }
+    if (searchParams.get('microsoft-connected') === 'true') {
+      setBanner('Microsoft Calendar connected successfully! Initial sync is running in the background.');
+      setSearchParams({}, { replace: true });
+    }
+    if (searchParams.get('microsoft-error')) {
+      setBanner(`Microsoft connection failed: ${searchParams.get('microsoft-error')}`);
+      setSearchParams({}, { replace: true });
+    }
   }, [searchParams, setSearchParams]);
 
   function handleConnectGoogle() {
     googleAuth.mutate(undefined, {
+      onSuccess: (data) => {
+        window.location.href = data.url;
+      },
+    });
+  }
+
+  function handleConnectMicrosoft() {
+    microsoftAuth.mutate(undefined, {
       onSuccess: (data) => {
         window.location.href = data.url;
       },
@@ -74,6 +91,13 @@ export function CalendarsPage() {
         >
           {googleAuth.isPending ? 'Connecting...' : 'Connect Google'}
         </Button>
+        <Button
+          variant="secondary"
+          onClick={handleConnectMicrosoft}
+          disabled={microsoftAuth.isPending}
+        >
+          {microsoftAuth.isPending ? 'Connecting...' : 'Connect Microsoft'}
+        </Button>
         <Button onClick={() => setShowCreate(true)}>Add Calendar</Button>
       </div>
 
@@ -90,7 +114,7 @@ export function CalendarsPage() {
               onEdit={() => setEditing(cal)}
               expanded={expandedId === cal.id}
               onToggleEvents={() => setExpandedId(expandedId === cal.id ? null : cal.id)}
-              onSync={cal.provider === 'GOOGLE' ? () => handleSync(cal.id) : undefined}
+              onSync={['GOOGLE', 'MICROSOFT', 'EXCHANGE'].includes(cal.provider) ? () => handleSync(cal.id) : undefined}
               syncing={syncCalendar.isPending && syncCalendar.variables === cal.id}
             >
               <EventList calendarId={cal.id} />

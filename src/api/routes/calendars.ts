@@ -5,6 +5,7 @@ import { prisma } from "../../lib/prisma";
 import { asyncHandler, AppError } from "../middleware/errorHandler";
 import { authenticate, AuthRequest } from "../middleware/auth";
 import { getAuthUrl, exchangeCode } from "../../services/google-auth";
+import { getMicrosoftAuthUrl, exchangeMicrosoftCode } from "../../services/microsoft-auth";
 import { syncCalendar } from "../../services/calendar-sync";
 
 const router = Router();
@@ -129,6 +130,84 @@ router.get(
   })
 );
 
+// --- Microsoft OAuth Routes (callback is public) ---
+
+// GET /calendars/microsoft/auth-url — Generate Microsoft consent URL
+router.get(
+  "/microsoft/auth-url",
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const authReq = req as AuthRequest;
+
+    const state = jwt.sign(
+      { sub: authReq.userId!, purpose: "microsoft-oauth" },
+      JWT_SECRET,
+      { expiresIn: "10m" }
+    );
+
+    const url = getMicrosoftAuthUrl(state);
+    res.json({ url });
+  })
+);
+
+// GET /calendars/microsoft/callback — Microsoft redirects here (public, no JWT auth)
+router.get(
+  "/microsoft/callback",
+  asyncHandler(async (req, res) => {
+    const { code, state, error, error_description } = req.query;
+
+    if (error) {
+      const msg = error_description || error;
+      res.redirect(`${FRONTEND_URL}/calendars?microsoft-error=${encodeURIComponent(String(msg))}`);
+      return;
+    }
+
+    if (!code || !state) {
+      throw new AppError(400, "Missing code or state parameter");
+    }
+
+    // Verify state JWT
+    let payload: { sub: string; purpose: string };
+    try {
+      payload = jwt.verify(String(state), JWT_SECRET) as { sub: string; purpose: string };
+    } catch {
+      throw new AppError(400, "Invalid or expired state parameter");
+    }
+
+    if (payload.purpose !== "microsoft-oauth") {
+      throw new AppError(400, "Invalid state purpose");
+    }
+
+    const userId = payload.sub;
+
+    // Exchange code for tokens
+    const tokens = await exchangeMicrosoftCode(String(code));
+
+    if (!tokens.accessToken) {
+      throw new AppError(500, "Microsoft did not return an access token");
+    }
+
+    // Create calendar record
+    const calendar = await prisma.calendar.create({
+      data: {
+        userId,
+        provider: "MICROSOFT",
+        name: "Microsoft Calendar",
+        externalId: "primary",
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken || null,
+      },
+    });
+
+    // Trigger initial sync in background
+    syncCalendar(calendar.id).catch((err) => {
+      console.error("Initial Microsoft Calendar sync failed:", err);
+    });
+
+    res.redirect(`${FRONTEND_URL}/calendars?microsoft-connected=true`);
+  })
+);
+
 // --- Authenticated CRUD Routes ---
 
 // POST /calendars — Add a calendar
@@ -236,8 +315,9 @@ router.post(
     });
     if (!calendar) throw new AppError(404, "Calendar not found");
 
-    if (calendar.provider !== "GOOGLE") {
-      throw new AppError(400, "Sync is only supported for Google calendars");
+    const syncable = ["GOOGLE", "MICROSOFT", "EXCHANGE"];
+    if (!syncable.includes(calendar.provider)) {
+      throw new AppError(400, `Sync is not supported for ${calendar.provider} calendars`);
     }
 
     const result = await syncCalendar(id);

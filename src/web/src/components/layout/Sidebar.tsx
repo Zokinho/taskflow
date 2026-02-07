@@ -7,6 +7,7 @@ const links = [
   { to: '/people', label: 'People', icon: '♟' },
   { to: '/calendars', label: 'Calendars', icon: '▧' },
   { to: '/kids', label: 'Kids', icon: '★' },
+  { to: '/guide', label: 'Guide', icon: '?' },
 ];
 
 interface SidebarProps {

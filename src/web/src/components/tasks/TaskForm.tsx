@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import type { Task, TaskPriority, TaskStatus } from '@/types';
 
 interface TaskFormProps {
-  initial?: Task;
+  initial?: Partial<Task>;
   onSubmit: (data: Partial<Task>) => void;
   loading?: boolean;
 }
@@ -49,7 +49,7 @@ export function TaskForm({ initial, onSubmit, loading }: TaskFormProps) {
       notes: notes || null,
       tags: tagsStr ? tagsStr.split(',').map((t) => t.trim()).filter(Boolean) : [],
     };
-    if (initial) data.status = status;
+    if (initial?.id) data.status = status;
     onSubmit(data);
   }
 
@@ -59,7 +59,7 @@ export function TaskForm({ initial, onSubmit, loading }: TaskFormProps) {
       <Input label="Description" value={description} onChange={setDescription} />
       <div className="grid grid-cols-2 gap-3">
         <Select label="Priority" value={priority} onChange={(v) => setPriority(v as TaskPriority)} options={priorityOptions} />
-        {initial && <Select label="Status" value={status} onChange={(v) => setStatus(v as TaskStatus)} options={statusOptions} />}
+        {initial?.id && <Select label="Status" value={status} onChange={(v) => setStatus(v as TaskStatus)} options={statusOptions} />}
       </div>
       <Input label="Due date" type="datetime-local" value={dueDate} onChange={setDueDate} />
       <div className="grid grid-cols-2 gap-3">
@@ -71,7 +71,7 @@ export function TaskForm({ initial, onSubmit, loading }: TaskFormProps) {
       <Input label="Tags (comma-separated)" value={tagsStr} onChange={setTagsStr} />
       <div className="flex justify-end gap-2 pt-2">
         <Button type="submit" disabled={loading}>
-          {loading ? 'Saving...' : initial ? 'Update' : 'Create'}
+          {loading ? 'Saving...' : initial?.id ? 'Update' : 'Create'}
         </Button>
       </div>
     </form>

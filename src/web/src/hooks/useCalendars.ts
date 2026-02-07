@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { Calendar, CalendarEvent } from '@/types';
+import type { Calendar, CalendarEvent, Task } from '@/types';
 
 export function useCalendars() {
   return useQuery<Calendar[]>({
@@ -66,6 +66,17 @@ export function useSyncCalendar() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['calendars'] });
       qc.invalidateQueries({ queryKey: ['calendarEvents'] });
+    },
+  });
+}
+
+export function useConvertEventToTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ calendarId, eventId, overrides }: { calendarId: string; eventId: string; overrides?: Partial<Task> }) =>
+      api.post<Task>(`/calendars/${calendarId}/events/${eventId}/to-task`, overrides || {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
 }

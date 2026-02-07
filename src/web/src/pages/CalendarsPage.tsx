@@ -8,8 +8,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { CalendarCard } from '@/components/calendars/CalendarCard';
 import { CalendarForm } from '@/components/calendars/CalendarForm';
 import { EventList } from '@/components/calendars/EventList';
-import { useCalendars, useCreateCalendar, useUpdateCalendar, useDeleteCalendar, useGoogleAuthUrl, useMicrosoftAuthUrl, useSyncCalendar } from '@/hooks/useCalendars';
-import type { Calendar } from '@/types';
+import { TaskForm } from '@/components/tasks/TaskForm';
+import { useCalendars, useCreateCalendar, useUpdateCalendar, useDeleteCalendar, useGoogleAuthUrl, useMicrosoftAuthUrl, useSyncCalendar, useConvertEventToTask } from '@/hooks/useCalendars';
+import { eventToTaskDefaults } from '@/lib/eventToTaskDefaults';
+import { ApiRequestError } from '@/lib/api';
+import type { Calendar, CalendarEvent, Task } from '@/types';
 
 export function CalendarsPage() {
   const { data: calendars, isLoading } = useCalendars();
@@ -19,12 +22,14 @@ export function CalendarsPage() {
   const googleAuth = useGoogleAuthUrl();
   const microsoftAuth = useMicrosoftAuthUrl();
   const syncCalendar = useSyncCalendar();
+  const convertEvent = useConvertEventToTask();
 
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Calendar | null>(null);
   const [deleting, setDeleting] = useState<Calendar | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [convertingEvent, setConvertingEvent] = useState<{ calendarId: string; event: CalendarEvent } | null>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -74,6 +79,46 @@ export function CalendarsPage() {
     });
   }
 
+  function handleQuickConvert(calendarId: string, event: CalendarEvent) {
+    convertEvent.mutate({ calendarId, eventId: event.id }, {
+      onSuccess: (task) => {
+        setBanner(`Task created: "${task.title}"`);
+      },
+      onError: (err) => {
+        if (err instanceof ApiRequestError && err.status === 409) {
+          setBanner('This event has already been converted to a task.');
+        } else {
+          setBanner('Failed to convert event to task.');
+        }
+      },
+    });
+  }
+
+  function handleEditConvert(calendarId: string, event: CalendarEvent) {
+    setConvertingEvent({ calendarId, event });
+  }
+
+  function handleEditConvertSubmit(data: Partial<Task>) {
+    if (!convertingEvent) return;
+    convertEvent.mutate(
+      { calendarId: convertingEvent.calendarId, eventId: convertingEvent.event.id, overrides: data },
+      {
+        onSuccess: (task) => {
+          setConvertingEvent(null);
+          setBanner(`Task created: "${task.title}"`);
+        },
+        onError: (err) => {
+          if (err instanceof ApiRequestError && err.status === 409) {
+            setConvertingEvent(null);
+            setBanner('This event has already been converted to a task.');
+          } else {
+            setBanner('Failed to convert event to task.');
+          }
+        },
+      }
+    );
+  }
+
   return (
     <div className="space-y-4">
       {banner && (
@@ -117,7 +162,11 @@ export function CalendarsPage() {
               onSync={['GOOGLE', 'MICROSOFT', 'EXCHANGE', 'PROTON_ICS'].includes(cal.provider) ? () => handleSync(cal.id) : undefined}
               syncing={syncCalendar.isPending && syncCalendar.variables === cal.id}
             >
-              <EventList calendarId={cal.id} />
+              <EventList
+                calendarId={cal.id}
+                onQuickConvert={(ev) => handleQuickConvert(cal.id, ev)}
+                onEditConvert={(ev) => handleEditConvert(cal.id, ev)}
+              />
             </CalendarCard>
           ))}
         </div>
@@ -144,6 +193,16 @@ export function CalendarsPage() {
               </Button>
             </div>
           </div>
+        )}
+      </Modal>
+
+      <Modal open={!!convertingEvent} onClose={() => setConvertingEvent(null)} title="Convert Event to Task">
+        {convertingEvent && (
+          <TaskForm
+            initial={eventToTaskDefaults(convertingEvent.event)}
+            onSubmit={handleEditConvertSubmit}
+            loading={convertEvent.isPending}
+          />
         )}
       </Modal>
 

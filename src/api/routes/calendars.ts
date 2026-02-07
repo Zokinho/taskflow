@@ -47,6 +47,24 @@ function paramId(req: AuthRequest): string {
   return id;
 }
 
+function paramEventId(req: AuthRequest): string {
+  const id = req.params.eventId;
+  if (Array.isArray(id)) return id[0];
+  return id;
+}
+
+const eventToTaskOverridesSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  description: z.string().nullable().optional(),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
+  dueDate: z.string().datetime().nullable().optional(),
+  scheduledStart: z.string().datetime().nullable().optional(),
+  scheduledEnd: z.string().datetime().nullable().optional(),
+  estimatedMins: z.number().int().positive().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  tags: z.array(z.string()).optional(),
+});
+
 // Strip sensitive tokens from calendar responses
 function sanitize<T extends Record<string, unknown>>(calendar: T): Omit<T, "accessToken" | "refreshToken"> {
   const { accessToken: _, refreshToken: __, ...safe } = calendar;
@@ -355,6 +373,77 @@ router.get(
     });
 
     res.json(events);
+  })
+);
+
+// POST /calendars/:id/events/:eventId/to-task — Convert event to task
+router.post(
+  "/:id/events/:eventId/to-task",
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const authReq = req as AuthRequest;
+    const calendarId = paramId(authReq);
+    const eventId = paramEventId(authReq);
+
+    // Verify calendar belongs to user
+    const calendar = await prisma.calendar.findFirst({
+      where: { id: calendarId, userId: authReq.userId! },
+    });
+    if (!calendar) throw new AppError(404, "Calendar not found");
+
+    // Fetch event with kid relation
+    const event = await prisma.calendarEvent.findFirst({
+      where: { id: eventId, calendarId },
+      include: { kid: true },
+    });
+    if (!event) throw new AppError(404, "Event not found");
+
+    // Check for duplicate conversion
+    const existing = await prisma.task.findUnique({
+      where: { sourceEventId: eventId },
+    });
+    if (existing) throw new AppError(409, "This event has already been converted to a task");
+
+    // Build default fields from event
+    const durationMins = Math.round(
+      (event.endTime.getTime() - event.startTime.getTime()) / 60000
+    );
+    const tags: string[] = [];
+    if (event.kid) tags.push(event.kid.name);
+
+    const defaults = {
+      title: event.title,
+      description: event.description,
+      dueDate: event.startTime,
+      scheduledStart: event.startTime,
+      scheduledEnd: event.endTime,
+      estimatedMins: durationMins > 0 ? durationMins : null,
+      notes: event.location ? `Location: ${event.location}` : null,
+      tags,
+      priority: "MEDIUM" as const,
+    };
+
+    // Parse and merge overrides
+    const overrides = eventToTaskOverridesSchema.parse(req.body || {});
+    const merged = { ...defaults, ...overrides };
+
+    // Convert date strings from overrides back to Date objects
+    const taskData = {
+      ...merged,
+      dueDate: merged.dueDate instanceof Date ? merged.dueDate : merged.dueDate ? new Date(merged.dueDate) : null,
+      scheduledStart: merged.scheduledStart instanceof Date ? merged.scheduledStart : merged.scheduledStart ? new Date(merged.scheduledStart) : null,
+      scheduledEnd: merged.scheduledEnd instanceof Date ? merged.scheduledEnd : merged.scheduledEnd ? new Date(merged.scheduledEnd) : null,
+    };
+
+    const task = await prisma.task.create({
+      data: {
+        ...taskData,
+        userId: authReq.userId!,
+        sourceEventId: eventId,
+      },
+    });
+
+    res.status(201).json(task);
   })
 );
 

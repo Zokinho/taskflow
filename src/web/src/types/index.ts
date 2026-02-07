@@ -30,6 +30,7 @@ export interface Task {
   completedAt: string | null;
   notes: string | null;
   tags: string[];
+  sourceEventId: string | null;
   createdAt: string;
   updatedAt: string;
 }

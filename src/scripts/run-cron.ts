@@ -6,9 +6,9 @@ import {
   generateMorningBriefings,
   generateEveningReviews,
   deliverPendingReminders,
-} from "../src/services/reminders";
-import { syncAllCalendars } from "../src/services/calendar-sync";
-import { getBot } from "../src/services/telegram";
+} from "../services/reminders";
+import { syncAllCalendars } from "../services/calendar-sync";
+import { getBot } from "../services/telegram";
 
 function logJob(name: string, fn: () => Promise<number>) {
   return async () => {
@@ -46,7 +46,7 @@ if (process.env.START_BOT_WITH_CRON === "true") {
   const bot = getBot();
   if (bot) {
     // Import bot commands (registers handlers)
-    import("../src/bot/index").then(() => {
+    import("../bot/index").then(() => {
       console.log("[cron] Bot started alongside cron");
     });
   } else {

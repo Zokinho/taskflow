@@ -1,0 +1,20 @@
+# TaskFlow reverse proxy
+#
+# Currently serves on :80 (no domain, no SSL).
+# When you get a domain, replace ":80" with "yourdomain.com"
+# and Caddy will auto-provision a Let's Encrypt certificate.
+
+:80 {
+	# API requests → Express backend
+	handle /api/* {
+		uri strip_prefix /api
+		reverse_proxy app:3002
+	}
+
+	# Everything else → React SPA static files
+	handle {
+		root * /srv/static
+		try_files {path} /index.html
+		file_server
+	}
+}

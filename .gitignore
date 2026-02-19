@@ -2,6 +2,18 @@ node_modules/
 dist/
 .env
 .env.prod
+.env.*
+!.env.example
+!.env.prod.example
+
+# Secrets & credentials
+*.pem
+*.key
+*.p12
+*.secret
+credentials.json
+secrets.json
+*service-account*.json
 backups/
 prisma/*.db
 *.tsbuildinfo

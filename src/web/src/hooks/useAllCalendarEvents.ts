@@ -1,13 +1,18 @@
 import { useMemo } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { useCalendars } from './useCalendars';
+import { useTasks } from './useTasks';
 import { api } from '@/lib/api';
-import type { CalendarEvent } from '@/types';
+import type { CalendarEvent, Task } from '@/types';
 
 export interface MergedCalendarEvent extends CalendarEvent {
   calendarName: string;
   calendarColor: string;
 }
+
+export type CalendarItem =
+  | { kind: 'event'; data: MergedCalendarEvent }
+  | { kind: 'task'; data: Task };
 
 const DEFAULT_COLOR = '#ec4899'; // pink-500
 
@@ -22,8 +27,14 @@ function getDateRange(date: Date) {
   };
 }
 
+/** @deprecated Use useCalendarItems instead */
 export function useAllCalendarEvents(currentDate: Date) {
+  return useCalendarItems(currentDate);
+}
+
+export function useCalendarItems(currentDate: Date) {
   const { data: calendars } = useCalendars();
+  const { data: tasks } = useTasks();
   const activeCalendars = useMemo(
     () => (calendars ?? []).filter((c) => c.isActive),
     [calendars],
@@ -60,5 +71,19 @@ export function useAllCalendarEvents(currentDate: Date) {
     return merged;
   }, [queries.map((q) => q.data), activeCalendars]);
 
-  return { events, isLoading, calendars: activeCalendars };
+  const items: CalendarItem[] = useMemo(() => {
+    const result: CalendarItem[] = events.map((ev) => ({ kind: 'event' as const, data: ev }));
+
+    if (tasks) {
+      for (const task of tasks) {
+        if (task.scheduledStart) {
+          result.push({ kind: 'task' as const, data: task });
+        }
+      }
+    }
+
+    return result;
+  }, [events, tasks]);
+
+  return { events, items, isLoading, calendars: activeCalendars };
 }

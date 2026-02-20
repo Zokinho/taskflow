@@ -13,19 +13,21 @@ export function escapeHtml(text: string): string {
     .replace(/>/g, "&gt;");
 }
 
-function time(d: Date): string {
+function time(d: Date, timezone?: string): string {
   return d.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    ...(timezone ? { timeZone: timezone } : {}),
   });
 }
 
-function dateStr(d: Date): string {
+function dateStr(d: Date, timezone?: string): string {
   return d.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
     day: "numeric",
+    ...(timezone ? { timeZone: timezone } : {}),
   });
 }
 
@@ -43,18 +45,18 @@ const STATUS_ICONS: Record<string, string> = {
   CANCELLED: "[-]",
 };
 
-export function formatTask(task: Task): string {
+export function formatTask(task: Task, timezone?: string): string {
   const sid = shortId(task.id);
   const status = STATUS_ICONS[task.status] || "[ ]";
   const pri = PRIORITY_ICONS[task.priority] || "";
-  const due = task.dueDate ? ` | ${dateStr(task.dueDate)}` : "";
+  const due = task.dueDate ? ` | ${dateStr(task.dueDate, timezone)}` : "";
   const dur = task.estimatedMins ? ` | ${task.estimatedMins}m` : "";
   return `${status} <code>${sid}</code> ${pri ? pri + " " : ""}${escapeHtml(task.title)}${due}${dur}`;
 }
 
-export function formatEvent(event: CalendarEvent): string {
-  const start = time(event.startTime);
-  const end = time(event.endTime);
+export function formatEvent(event: CalendarEvent, timezone?: string): string {
+  const start = time(event.startTime, timezone);
+  const end = time(event.endTime, timezone);
   if (event.allDay) {
     return `  All day: ${escapeHtml(event.title)}`;
   }
@@ -64,9 +66,10 @@ export function formatEvent(event: CalendarEvent): string {
 export function formatDaySchedule(
   date: Date,
   events: CalendarEvent[],
-  tasks: Task[]
+  tasks: Task[],
+  timezone?: string
 ): string {
-  const header = `<b>${dateStr(date)}</b>`;
+  const header = `<b>${dateStr(date, timezone)}</b>`;
   const lines: string[] = [header];
 
   if (events.length === 0 && tasks.length === 0) {
@@ -76,7 +79,7 @@ export function formatDaySchedule(
 
   if (events.length > 0) {
     for (const e of events) {
-      lines.push(formatEvent(e));
+      lines.push(formatEvent(e, timezone));
     }
   }
 
@@ -84,22 +87,22 @@ export function formatDaySchedule(
     if (events.length > 0) lines.push("");
     lines.push("<b>Tasks:</b>");
     for (const t of tasks) {
-      lines.push("  " + formatTask(t));
+      lines.push("  " + formatTask(t, timezone));
     }
   }
 
   return lines.join("\n");
 }
 
-export function formatPerson(person: Person): string {
+export function formatPerson(person: Person, timezone?: string): string {
   const lines: string[] = [
     `<b>${escapeHtml(person.name)}</b> <code>${shortId(person.id)}</code>`,
   ];
   if (person.email) lines.push(`  Email: ${escapeHtml(person.email)}`);
   if (person.phone) lines.push(`  Phone: ${escapeHtml(person.phone)}`);
-  if (person.birthday) lines.push(`  Birthday: ${dateStr(person.birthday)}`);
+  if (person.birthday) lines.push(`  Birthday: ${dateStr(person.birthday, timezone)}`);
   if (person.lastContactAt)
-    lines.push(`  Last contact: ${dateStr(person.lastContactAt)}`);
+    lines.push(`  Last contact: ${dateStr(person.lastContactAt, timezone)}`);
   if (person.followUpDays)
     lines.push(`  Follow-up: every ${person.followUpDays} days`);
   if (person.tags.length > 0)
@@ -108,9 +111,9 @@ export function formatPerson(person: Person): string {
   return lines.join("\n");
 }
 
-export function formatKid(kid: Kid): string {
+export function formatKid(kid: Kid, timezone?: string): string {
   const lines = [`<b>${escapeHtml(kid.name)}</b> <code>${shortId(kid.id)}</code>`];
-  if (kid.birthday) lines.push(`  Birthday: ${dateStr(kid.birthday)}`);
+  if (kid.birthday) lines.push(`  Birthday: ${dateStr(kid.birthday, timezone)}`);
   if (kid.notes) lines.push(`  Notes: ${escapeHtml(kid.notes)}`);
   return lines.join("\n");
 }

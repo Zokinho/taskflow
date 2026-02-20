@@ -39,23 +39,23 @@ async function queryDayData(userId: string, start: Date, end: Date) {
 }
 
 async function handleToday(ctx: Context, user: User) {
-  const { start, end } = getDayRange(new Date());
+  const { start, end } = getDayRange(new Date(), user.timezone);
   const { events, tasks } = await queryDayData(user.id, start, end);
-  const text = formatDaySchedule(new Date(), events, tasks);
+  const text = formatDaySchedule(new Date(), events, tasks, user.timezone);
   await ctx.reply(truncate(text), { parse_mode: "HTML" });
 }
 
 async function handleTomorrow(ctx: Context, user: User) {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const { start, end } = getDayRange(tomorrow);
+  const { start, end } = getDayRange(tomorrow, user.timezone);
   const { events, tasks } = await queryDayData(user.id, start, end);
-  const text = formatDaySchedule(tomorrow, events, tasks);
+  const text = formatDaySchedule(tomorrow, events, tasks, user.timezone);
   await ctx.reply(truncate(text), { parse_mode: "HTML" });
 }
 
 async function handleWeek(ctx: Context, user: User) {
-  const { start, end } = getWeekRange(new Date());
+  const { start, end } = getWeekRange(new Date(), user.timezone);
   const [events, tasks] = await Promise.all([
     prisma.calendarEvent.findMany({
       where: {
@@ -79,10 +79,8 @@ async function handleWeek(ctx: Context, user: User) {
 
   const lines: string[] = ["<b>This Week</b>\n"];
   for (let d = 0; d < 7; d++) {
-    const day = new Date(start);
-    day.setDate(day.getDate() + d);
-    const dayEnd = new Date(day);
-    dayEnd.setDate(dayEnd.getDate() + 1);
+    const day = new Date(start.getTime() + d * 24 * 60 * 60 * 1000);
+    const dayEnd = new Date(day.getTime() + 24 * 60 * 60 * 1000);
 
     const dayEvents = events.filter(
       (e) => e.startTime >= day && e.startTime < dayEnd
@@ -92,7 +90,7 @@ async function handleWeek(ctx: Context, user: User) {
       return ref && ref >= day && ref < dayEnd;
     });
 
-    lines.push(formatDaySchedule(day, dayEvents, dayTasks));
+    lines.push(formatDaySchedule(day, dayEvents, dayTasks, user.timezone));
     lines.push("");
   }
 
@@ -100,7 +98,7 @@ async function handleWeek(ctx: Context, user: User) {
 }
 
 async function handleFree(ctx: Context, user: User) {
-  const { start, end } = getDayRange(new Date());
+  const { start, end } = getDayRange(new Date(), user.timezone);
   const events = await prisma.calendarEvent.findMany({
     where: {
       calendar: { userId: user.id, isActive: true },
@@ -110,10 +108,9 @@ async function handleFree(ctx: Context, user: User) {
     orderBy: { startTime: "asc" },
   });
 
-  const workStart = new Date(start);
-  workStart.setHours(8, 0, 0, 0);
-  const workEnd = new Date(start);
-  workEnd.setHours(18, 0, 0, 0);
+  // Work hours: 8am-6pm in user's timezone
+  const workStart = new Date(start.getTime() + 8 * 60 * 60 * 1000);
+  const workEnd = new Date(start.getTime() + 18 * 60 * 60 * 1000);
 
   const now = new Date();
   const slotStart = now > workStart ? now : workStart;
@@ -123,6 +120,7 @@ async function handleFree(ctx: Context, user: User) {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
+      timeZone: user.timezone,
     });
 
   // Find gaps
@@ -171,9 +169,9 @@ async function handleDayName(
     });
     return;
   }
-  const { start, end } = getDayRange(target);
+  const { start, end } = getDayRange(target, user.timezone);
   const { events, tasks } = await queryDayData(user.id, start, end);
-  const text = formatDaySchedule(target, events, tasks);
+  const text = formatDaySchedule(target, events, tasks, user.timezone);
   await ctx.reply(truncate(text), { parse_mode: "HTML" });
 }
 

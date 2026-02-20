@@ -2,6 +2,7 @@ import type { Context } from "grammy";
 import type { User } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import type { CommandRoute } from "../dispatcher";
+import { todayStr } from "../helpers/date-parser";
 import {
   formatPerson,
   escapeHtml,
@@ -53,7 +54,7 @@ async function handlePersonLookup(
     return;
   }
 
-  const text = people.map(formatPerson).join("\n\n");
+  const text = people.map((p) => formatPerson(p, user.timezone)).join("\n\n");
   await ctx.reply(truncate(text), { parse_mode: "HTML" });
 }
 
@@ -89,9 +90,8 @@ async function handleContacted(
 }
 
 async function handleBirthdays(ctx: Context, user: User) {
-  const now = new Date();
-  const inThirtyDays = new Date();
-  inThirtyDays.setDate(inThirtyDays.getDate() + 30);
+  const nowStr = todayStr(user.timezone);
+  const now = new Date(nowStr + "T12:00:00Z"); // noon to avoid edge cases
 
   // Fetch all people + kids with birthdays
   const [people, kids] = await Promise.all([
@@ -107,8 +107,14 @@ async function handleBirthdays(ctx: Context, user: User) {
 
   const checkBirthday = (name: string, birthday: Date) => {
     const next = new Date(birthday);
-    next.setFullYear(now.getFullYear());
-    if (next < now) next.setFullYear(now.getFullYear() + 1);
+    next.setFullYear(now.getUTCFullYear());
+    // Use UTC month/day comparison since 'now' is constructed as UTC noon
+    if (
+      next.getUTCMonth() < now.getUTCMonth() ||
+      (next.getUTCMonth() === now.getUTCMonth() && next.getUTCDate() < now.getUTCDate())
+    ) {
+      next.setFullYear(now.getUTCFullYear() + 1);
+    }
     const daysUntil = Math.ceil(
       (next.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -140,7 +146,7 @@ async function handleBirthdays(ctx: Context, user: User) {
           ? "tomorrow"
           : `in ${u.daysUntil} days`;
     lines.push(
-      `  ${escapeHtml(u.name)} — ${u.date.toLocaleDateString("en-US", { month: "short", day: "numeric" })} (${dayStr})`
+      `  ${escapeHtml(u.name)} — ${u.date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: user.timezone })} (${dayStr})`
     );
   }
 

@@ -43,8 +43,12 @@ async function handleCreateTask(
     },
   });
 
-  const parts = [`Created: ${formatTask(task)}`];
-  if (date) parts.push(`Due: ${date.toLocaleDateString()}`);
+  const parts = [`Created: ${formatTask(task, user.timezone)}`];
+  if (date) {
+    parts.push(
+      `Due: ${date.toLocaleDateString("en-US", { timeZone: user.timezone, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`
+    );
+  }
   if (durationMins) parts.push(`Duration: ${durationMins}m`);
 
   await ctx.reply(parts.join("\n"), { parse_mode: "HTML" });
@@ -69,7 +73,7 @@ async function handleDone(
     data: { status: "DONE", completedAt: new Date() },
   });
 
-  await ctx.reply(`Done! ${formatTask(updated)}`, { parse_mode: "HTML" });
+  await ctx.reply(`Done! ${formatTask(updated, user.timezone)}`, { parse_mode: "HTML" });
 }
 
 async function handleDefer(
@@ -101,7 +105,7 @@ async function handleDefer(
   });
 
   await ctx.reply(
-    `Deferred to ${date.toLocaleDateString()}: ${formatTask(updated)}`,
+    `Deferred to ${date.toLocaleDateString("en-US", { timeZone: user.timezone, weekday: "short", month: "short", day: "numeric" })}: ${formatTask(updated, user.timezone)}`,
     { parse_mode: "HTML" }
   );
 }
@@ -178,7 +182,7 @@ async function handleListTasks(
     return;
   }
 
-  const text = "<b>Open Tasks</b>\n" + tasks.map(formatTask).join("\n");
+  const text = "<b>Open Tasks</b>\n" + tasks.map((t) => formatTask(t, user.timezone)).join("\n");
   await ctx.reply(truncate(text), { parse_mode: "HTML" });
 }
 

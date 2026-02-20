@@ -13,6 +13,39 @@ function toDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+/**
+ * Get the UTC instant corresponding to midnight of the given date string
+ * in the given timezone.
+ */
+function tzMidnight(dateStr: string, timezone: string): Date {
+  const probe = new Date(dateStr + "T12:00:00Z");
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(probe);
+
+  const get = (type: string) =>
+    parseInt(parts.find((p) => p.type === type)?.value || "0");
+
+  const tzHour = get("hour");
+  const tzMinute = get("minute");
+  const offsetMs = (tzHour * 60 + tzMinute - 12 * 60) * 60 * 1000;
+
+  const midnight = new Date(dateStr + "T00:00:00Z");
+  return new Date(midnight.getTime() - offsetMs);
+}
+
+/**
+ * Get the UTC day boundaries (start, end) for a date string in a timezone.
+ */
+function dayBoundsUtc(dateStr: string, timezone: string): { dayStart: Date; dayEnd: Date } {
+  const dayStart = tzMidnight(dateStr, timezone);
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  return { dayStart, dayEnd };
+}
+
 function isBirthdayInRange(
   birthday: Date,
   todayStr: string,
@@ -194,8 +227,8 @@ export async function generateMorningBriefings(): Promise<number> {
   let created = 0;
 
   for (const user of users) {
-    const todayStr = userToday(user.timezone);
-    const scheduledAt = new Date(todayStr + "T06:00:00Z");
+    const todayDate = userToday(user.timezone);
+    const scheduledAt = new Date(todayDate + "T06:00:00Z");
 
     const existing = await prisma.reminder.findFirst({
       where: {
@@ -206,15 +239,14 @@ export async function generateMorningBriefings(): Promise<number> {
     });
     if (existing) continue;
 
-    const dayStart = new Date(todayStr + "T00:00:00Z");
-    const dayEnd = new Date(todayStr + "T23:59:59Z");
+    const { dayStart, dayEnd } = dayBoundsUtc(todayDate, user.timezone);
 
     // Gather data
     const [events, tasks, birthdays] = await Promise.all([
       prisma.calendarEvent.findMany({
         where: {
           calendar: { userId: user.id, isActive: true },
-          startTime: { gte: dayStart, lte: dayEnd },
+          startTime: { gte: dayStart, lt: dayEnd },
         },
         orderBy: { startTime: "asc" },
         take: 20,
@@ -223,7 +255,10 @@ export async function generateMorningBriefings(): Promise<number> {
         where: {
           userId: user.id,
           status: { in: ["TODO", "IN_PROGRESS"] },
-          dueDate: { gte: dayStart, lte: dayEnd },
+          OR: [
+            { dueDate: { gte: dayStart, lt: dayEnd } },
+            { scheduledStart: { gte: dayStart, lt: dayEnd } },
+          ],
         },
         orderBy: { priority: "desc" },
       }),
@@ -231,7 +266,7 @@ export async function generateMorningBriefings(): Promise<number> {
         where: {
           userId: user.id,
           type: "BIRTHDAY",
-          scheduledAt: { gte: dayStart, lte: dayEnd },
+          scheduledAt: { gte: dayStart, lt: dayEnd },
         },
       }),
     ]);
@@ -246,6 +281,7 @@ export async function generateMorningBriefings(): Promise<number> {
           : new Date(e.startTime).toLocaleTimeString("en-US", {
               hour: "numeric",
               minute: "2-digit",
+              timeZone: user.timezone,
             });
         lines.push(`  ${time} - ${e.title}`);
       }
@@ -291,8 +327,8 @@ export async function generateEveningReviews(): Promise<number> {
   let created = 0;
 
   for (const user of users) {
-    const todayStr = userToday(user.timezone);
-    const scheduledAt = new Date(todayStr + "T20:00:00Z");
+    const todayDate = userToday(user.timezone);
+    const scheduledAt = new Date(todayDate + "T20:00:00Z");
 
     const existing = await prisma.reminder.findFirst({
       where: {
@@ -303,14 +339,12 @@ export async function generateEveningReviews(): Promise<number> {
     });
     if (existing) continue;
 
-    const dayStart = new Date(todayStr + "T00:00:00Z");
-    const dayEnd = new Date(todayStr + "T23:59:59Z");
+    const { dayStart, dayEnd } = dayBoundsUtc(todayDate, user.timezone);
 
-    const tomorrow = new Date(todayStr);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = toDateKey(tomorrow);
-    const tomorrowStart = new Date(tomorrowStr + "T00:00:00Z");
-    const tomorrowEnd = new Date(tomorrowStr + "T23:59:59Z");
+    const tomorrowDate = new Date(todayDate);
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    const tomorrowStr = toDateKey(tomorrowDate);
+    const { dayStart: tomorrowStart, dayEnd: tomorrowEnd } = dayBoundsUtc(tomorrowStr, user.timezone);
 
     const [completedToday, incompleteToday, tomorrowEvents] = await Promise.all(
       [
@@ -318,20 +352,23 @@ export async function generateEveningReviews(): Promise<number> {
           where: {
             userId: user.id,
             status: "DONE",
-            completedAt: { gte: dayStart, lte: dayEnd },
+            completedAt: { gte: dayStart, lt: dayEnd },
           },
         }),
         prisma.task.findMany({
           where: {
             userId: user.id,
             status: { in: ["TODO", "IN_PROGRESS"] },
-            dueDate: { gte: dayStart, lte: dayEnd },
+            OR: [
+              { dueDate: { gte: dayStart, lt: dayEnd } },
+              { scheduledStart: { gte: dayStart, lt: dayEnd } },
+            ],
           },
         }),
         prisma.calendarEvent.findMany({
           where: {
             calendar: { userId: user.id, isActive: true },
-            startTime: { gte: tomorrowStart, lte: tomorrowEnd },
+            startTime: { gte: tomorrowStart, lt: tomorrowEnd },
           },
           orderBy: { startTime: "asc" },
           take: 10,
@@ -365,6 +402,7 @@ export async function generateEveningReviews(): Promise<number> {
           : new Date(e.startTime).toLocaleTimeString("en-US", {
               hour: "numeric",
               minute: "2-digit",
+              timeZone: user.timezone,
             });
         lines.push(`  ${time} - ${e.title}`);
       }

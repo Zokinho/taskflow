@@ -23,7 +23,7 @@ async function handleKidsWeek(ctx: Context, user: User) {
     return;
   }
 
-  const { start, end } = getWeekRange(new Date());
+  const { start, end } = getWeekRange(new Date(), user.timezone);
   const events = await prisma.calendarEvent.findMany({
     where: {
       kidId: { in: kids.map((k) => k.id) },
@@ -49,7 +49,7 @@ async function handleKidsWeek(ctx: Context, user: User) {
   for (const [kidName, kidEvents] of grouped) {
     lines.push(`<b>${escapeHtml(kidName)}</b>`);
     for (const e of kidEvents) {
-      lines.push(formatEvent(e));
+      lines.push(formatEvent(e, user.timezone));
     }
     lines.push("");
   }
@@ -106,14 +106,14 @@ async function handleKidSchedule(
   let start: Date;
   let end: Date;
   if (period === "week") {
-    const range = getWeekRange(new Date());
+    const range = getWeekRange(new Date(), user.timezone);
     start = range.start;
     end = range.end;
   } else {
     const ref = period === "tomorrow"
       ? new Date(Date.now() + 86400000)
       : new Date();
-    const range = getDayRange(ref);
+    const range = getDayRange(ref, user.timezone);
     start = range.start;
     end = range.end;
   }
@@ -136,7 +136,7 @@ async function handleKidSchedule(
 
   const lines = [`<b>${escapeHtml(kid.name)} — ${period}</b>\n`];
   for (const e of events) {
-    lines.push(formatEvent(e));
+    lines.push(formatEvent(e, user.timezone));
   }
 
   await ctx.reply(truncate(lines.join("\n")), { parse_mode: "HTML" });

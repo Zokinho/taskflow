@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
 const links = [
   { to: '/', label: 'Dashboard', icon: '▦' },
@@ -10,12 +11,19 @@ const links = [
   { to: '/guide', label: 'Guide', icon: '?' },
 ];
 
+const adminLinks = [
+  { to: '/admin/users', label: 'Admin', icon: '⚙' },
+];
+
 interface SidebarProps {
   open: boolean;
   onClose: () => void;
 }
 
 export function Sidebar({ open, onClose }: SidebarProps) {
+  const { isAdmin } = useAuth();
+  const allLinks = isAdmin ? [...links, ...adminLinks] : links;
+
   return (
     <>
       {open && (
@@ -30,7 +38,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
           <h1 className="text-xl font-bold text-primary-600">TaskFlow</h1>
         </div>
         <nav className="flex-1 p-3 space-y-1">
-          {links.map((link) => (
+          {allLinks.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}

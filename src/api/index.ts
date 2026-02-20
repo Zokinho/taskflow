@@ -8,6 +8,7 @@ import peopleRoutes from "./routes/people";
 import calendarRoutes from "./routes/calendars";
 import kidRoutes from "./routes/kids";
 import reminderRoutes from "./routes/reminders";
+import adminRoutes from "./routes/admin";
 import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
@@ -27,6 +28,7 @@ app.use("/people", peopleRoutes);
 app.use("/calendars", calendarRoutes);
 app.use("/kids", kidRoutes);
 app.use("/reminders", reminderRoutes);
+app.use("/admin", adminRoutes);
 
 app.use(errorHandler);
 

@@ -9,6 +9,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  role: 'USER' | 'ADMIN';
   telegramChatId: string | null;
   timezone: string;
   preferences: Record<string, unknown>;

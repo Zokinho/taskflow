@@ -38,6 +38,11 @@ enum ReminderType {
   CUSTOM
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 // --- Models ---
 
 model User {
@@ -45,6 +50,7 @@ model User {
   email          String   @unique
   passwordHash   String
   name           String
+  role           Role     @default(USER)
   telegramChatId String?  @unique
   timezone       String   @default("UTC")
   preferences    Json     @default("{}")

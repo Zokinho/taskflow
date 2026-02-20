@@ -31,6 +31,23 @@ export function authenticate(
   }
 }
 
+export async function requireAdmin(
+  req: AuthRequest,
+  _res: Response,
+  next: NextFunction
+): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { id: req.userId },
+    select: { role: true },
+  });
+
+  if (!user || user.role !== "ADMIN") {
+    throw new AppError(403, "Admin access required");
+  }
+
+  next();
+}
+
 export function generateAccessToken(userId: string): string {
   return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: "15m" });
 }

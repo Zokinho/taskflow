@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -38,10 +38,6 @@ export function LoginPage() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Signing in...' : 'Sign in'}
           </Button>
-          <p className="text-sm text-center text-gray-500">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-primary-600 hover:underline">Register</Link>
-          </p>
         </form>
       </div>
     </div>

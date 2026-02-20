@@ -15,7 +15,7 @@ const router = Router();
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  max: 200,
   message: { error: "Too many requests, please try again later" },
   standardHeaders: true,
   legacyHeaders: false,
@@ -24,12 +24,6 @@ const authLimiter = rateLimit({
 router.use(authLimiter);
 
 // --- Schemas ---
-
-const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(1).max(100),
-});
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -41,32 +35,6 @@ const refreshSchema = z.object({
 });
 
 // --- Routes ---
-
-router.post(
-  "/register",
-  asyncHandler(async (req, res) => {
-    const { email, password, name } = registerSchema.parse(req.body);
-
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      throw new AppError(409, "Email already registered");
-    }
-
-    const passwordHash = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({
-      data: { email, passwordHash, name },
-    });
-
-    const accessToken = generateAccessToken(user.id);
-    const refreshToken = await generateRefreshToken(user.id);
-
-    res.status(201).json({
-      user: { id: user.id, email: user.email, name: user.name },
-      accessToken,
-      refreshToken,
-    });
-  })
-);
 
 router.post(
   "/login",
@@ -87,7 +55,7 @@ router.post(
     const refreshToken = await generateRefreshToken(user.id);
 
     res.json({
-      user: { id: user.id, email: user.email, name: user.name },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
       accessToken,
       refreshToken,
     });
@@ -104,10 +72,16 @@ router.post(
     // Single-use rotation: delete the old token
     await prisma.refreshToken.delete({ where: { id: tokenId } });
 
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { id: true, email: true, name: true, role: true },
+    });
+
     const newAccessToken = generateAccessToken(userId);
     const newRefreshToken = await generateRefreshToken(userId);
 
     res.json({
+      user,
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
     });

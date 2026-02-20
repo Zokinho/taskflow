@@ -1,10 +1,4 @@
-# TaskFlow reverse proxy
-#
-# Currently serves on :80 (no domain, no SSL).
-# When you get a domain, replace ":80" with "yourdomain.com"
-# and Caddy will auto-provision a Let's Encrypt certificate.
-
-:80 {
+taskflow.veloxia.ca {
 	# API requests → Express backend
 	handle /api/* {
 		uri strip_prefix /api

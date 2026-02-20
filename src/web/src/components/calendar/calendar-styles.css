@@ -133,6 +133,59 @@
   min-height: 2rem;
 }
 
+/* Task items in calendar — inline action icons on hover */
+.cal-task-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+}
+
+.cal-task-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.cal-task-actions {
+  display: none;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.rbc-event:hover .cal-task-actions {
+  display: inline-flex;
+}
+
+.cal-task-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 1px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  cursor: pointer;
+  border: none;
+  transition: background 0.1s;
+}
+
+.cal-task-actions button:hover {
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.cal-task-actions button svg {
+  width: 10px;
+  height: 10px;
+}
+
 /* Show more link */
 .rbc-show-more {
   color: #ec4899;

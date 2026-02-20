@@ -1,9 +1,10 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Calendar, dateFnsLocalizer, type View } from 'react-big-calendar';
+import { Calendar, dateFnsLocalizer, type View, type EventProps } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { enUS } from 'date-fns/locale/en-US';
 import { Card } from '@/components/ui/Card';
 import { useCalendarItems, type MergedCalendarEvent, type CalendarItem } from '@/hooks/useAllCalendarEvents';
+import { useUpdateTask, useDeleteTask } from '@/hooks/useTasks';
 import { EventDetailModal } from './EventDetailModal';
 import { TaskDetailModal } from './TaskDetailModal';
 import type { Task } from '@/types';
@@ -34,6 +35,65 @@ function toLocalDate(iso: string): Date {
   return new Date(y, m - 1, d);
 }
 
+function TaskActionIcons({ task }: { task: Task }) {
+  const updateTask = useUpdateTask();
+  const deleteTask = useDeleteTask();
+  const isDone = task.status === 'DONE' || task.status === 'CANCELLED';
+
+  if (isDone) return null;
+
+  const stop = (e: React.MouseEvent) => e.stopPropagation();
+
+  return (
+    <span className="cal-task-actions">
+      <button
+        title="Done"
+        onClick={(e) => { stop(e); updateTask.mutate({ id: task.id, status: 'DONE' }); }}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M5 13l4 4L19 7" />
+        </svg>
+      </button>
+      <button
+        title="Defer"
+        onClick={(e) => {
+          stop(e);
+          const ONE_DAY = 86400000;
+          const data: Partial<Task> & { id: string } = { id: task.id };
+          if (task.scheduledStart) data.scheduledStart = new Date(new Date(task.scheduledStart).getTime() + ONE_DAY).toISOString();
+          if (task.scheduledEnd) data.scheduledEnd = new Date(new Date(task.scheduledEnd).getTime() + ONE_DAY).toISOString();
+          if (task.dueDate) data.dueDate = new Date(new Date(task.dueDate).getTime() + ONE_DAY).toISOString();
+          updateTask.mutate(data);
+        }}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M13 7l5 5m0 0l-5 5m5-5H6" />
+        </svg>
+      </button>
+      <button
+        title="Delete"
+        onClick={(e) => { stop(e); deleteTask.mutate(task.id); }}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </span>
+  );
+}
+
+function CustomEvent({ event }: EventProps<CalendarEventItem>) {
+  if (event.resource.kind === 'task') {
+    return (
+      <span className="cal-task-item">
+        <span className="cal-task-title">{event.title}</span>
+        <TaskActionIcons task={event.resource.data} />
+      </span>
+    );
+  }
+  return <span>{event.title}</span>;
+}
+
 interface DashboardCalendarProps {
   convertedEventIds: Set<string>;
   onConverted: (message: string) => void;
@@ -46,6 +106,8 @@ export function DashboardCalendar({ convertedEventIds, onConverted }: DashboardC
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   const { items, isLoading, calendars } = useCalendarItems(currentDate);
+
+  const calendarComponents = useMemo(() => ({ event: CustomEvent }), []);
 
   const calendarEvents: CalendarEventItem[] = useMemo(
     () =>
@@ -169,6 +231,7 @@ export function DashboardCalendar({ convertedEventIds, onConverted }: DashboardC
               views={['month', 'week', 'day', 'agenda']}
               eventPropGetter={eventPropGetter}
               onSelectEvent={handleSelectEvent}
+              components={calendarComponents}
               popup
               step={30}
               timeslots={2}

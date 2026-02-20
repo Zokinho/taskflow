@@ -13,14 +13,24 @@ export function registerCommands(newRoutes: CommandRoute[]): void {
   routes.push(...newRoutes);
 }
 
+/** Normalize voice transcription artifacts into clean command text */
+function normalizeForDispatch(text: string): string {
+  return text
+    .trim()
+    .replace(/[.!?]+$/, "")              // strip trailing punctuation
+    .replace(/^(\w+)\s*[:]\s*/, "$1 ")    // "Task: buy" → "Task buy"
+    .replace(/\s{2,}/g, " ")              // collapse multiple spaces
+    .trim();
+}
+
 export async function dispatch(
   ctx: Context,
   user: User,
   text: string
 ): Promise<boolean> {
-  const trimmed = text.trim();
+  const normalized = normalizeForDispatch(text);
   for (const route of routes) {
-    const match = trimmed.match(route.pattern);
+    const match = normalized.match(route.pattern);
     if (match) {
       await route.handler(ctx, user, match);
       return true;

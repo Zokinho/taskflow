@@ -128,6 +128,11 @@
   text-overflow: ellipsis;
 }
 
+/* All-day row — ensure tasks section has room */
+.rbc-allday-cell {
+  min-height: 2rem;
+}
+
 /* Show more link */
 .rbc-show-more {
   color: #ec4899;

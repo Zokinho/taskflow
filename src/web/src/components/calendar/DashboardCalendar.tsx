@@ -61,23 +61,17 @@ export function DashboardCalendar({ convertedEventIds, onConverted }: DashboardC
             resource: item,
           };
         }
-        // task
+        // task — pinned in all-day row at top of each day
         const task = item.data;
-        const start = new Date(task.scheduledStart!);
-        let end: Date;
-        if (task.scheduledEnd) {
-          end = new Date(task.scheduledEnd);
-        } else if (task.estimatedMins) {
-          end = new Date(start.getTime() + task.estimatedMins * 60 * 1000);
-        } else {
-          end = new Date(start.getTime() + 60 * 60 * 1000); // default 1hr
-        }
+        const ref = task.scheduledStart ?? task.dueDate!;
+        const start = toLocalDate(ref);
+        const end = start; // same day
         return {
           id: task.id,
           title: task.title,
           start,
           end,
-          allDay: false,
+          allDay: true,
           resource: item,
         };
       }),

@@ -76,7 +76,7 @@ export function useCalendarItems(currentDate: Date) {
 
     if (tasks) {
       for (const task of tasks) {
-        if (task.scheduledStart) {
+        if (task.scheduledStart || task.dueDate) {
           result.push({ kind: 'task' as const, data: task });
         }
       }

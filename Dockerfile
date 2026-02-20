@@ -12,6 +12,7 @@ WORKDIR /app
 COPY src/web/package.json src/web/package-lock.json* src/web/
 RUN npm ci --prefix src/web
 COPY src/web/ src/web/
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 RUN npm run --prefix src/web build
 
 # Stage 3: Build backend (tsc + prisma generate)
@@ -26,6 +27,7 @@ COPY src/ src/
 # Remove web source (already built in stage 2)
 RUN rm -rf src/web
 RUN npx prisma generate
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 RUN npm run build
 
 # Stage 4: Production image

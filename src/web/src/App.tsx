@@ -9,6 +9,7 @@ import { CalendarsPage } from '@/pages/CalendarsPage';
 import { KidsPage } from '@/pages/KidsPage';
 import { RemindersPage } from '@/pages/RemindersPage';
 import { GuidePage } from '@/pages/GuidePage';
+import { SettingsPage } from '@/pages/SettingsPage';
 import { AdminUsersPage } from '@/pages/AdminUsersPage';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import type { ReactNode } from 'react';
@@ -40,6 +41,7 @@ export function App() {
           <Route path="calendars" element={<CalendarsPage />} />
           <Route path="kids" element={<KidsPage />} />
           <Route path="guide" element={<GuidePage />} />
+          <Route path="settings" element={<SettingsPage />} />
           <Route path="admin/users" element={<AdminUsersPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

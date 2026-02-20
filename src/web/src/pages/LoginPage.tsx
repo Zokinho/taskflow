@@ -17,7 +17,7 @@ export function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email, password, Intl.DateTimeFormat().resolvedOptions().timeZone);
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');

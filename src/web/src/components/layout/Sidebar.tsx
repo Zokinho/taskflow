@@ -9,6 +9,7 @@ const links = [
   { to: '/people', label: 'People', icon: '♟' },
   { to: '/calendars', label: 'Calendars', icon: '▧' },
   { to: '/kids', label: 'Kids', icon: '★' },
+  { to: '/settings', label: 'Settings', icon: '\u2699' },
   { to: '/guide', label: 'Guide', icon: '?' },
 ];
 

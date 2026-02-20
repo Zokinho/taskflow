@@ -9,6 +9,7 @@ const titles: Record<string, string> = {
   '/people': 'People',
   '/calendars': 'Calendars',
   '/kids': 'Kids',
+  '/settings': 'Settings',
   '/guide': 'Guide',
 };
 

@@ -7,8 +7,9 @@ interface AuthContextValue {
   user: User | null;
   isAdmin: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, timezone?: string) => Promise<void>;
   logout: () => void;
+  updateUser: (data: { name?: string; timezone?: string; preferences?: Record<string, unknown> }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -41,10 +42,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(false);
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const data = await api.post<AuthResponse>('/auth/login', { email, password });
+  const login = useCallback(async (email: string, password: string, timezone?: string) => {
+    const data = await api.post<AuthResponse>('/auth/login', { email, password, timezone });
     saveAuth(data);
     setUser(data.user);
+  }, []);
+
+  const updateUser = useCallback(async (data: { name?: string; timezone?: string; preferences?: Record<string, unknown> }) => {
+    const updated = await api.patch<User>('/auth/me', data);
+    setUser(updated);
+    localStorage.setItem(USER_KEY, JSON.stringify(updated));
   }, []);
 
   const logout = useCallback(() => {
@@ -53,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAdmin: user?.role === 'ADMIN', loading, login, logout }}>
+    <AuthContext.Provider value={{ user, isAdmin: user?.role === 'ADMIN', loading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

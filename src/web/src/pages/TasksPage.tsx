@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { TaskForm } from '@/components/tasks/TaskForm';
 import { useTasks, useCreateTask, useUpdateTask, useDeleteTask } from '@/hooks/useTasks';
+import { useAutoSchedule, useClearSchedule } from '@/hooks/useAutoSchedule';
 import type { Task } from '@/types';
 
 export function TasksPage() {
@@ -28,10 +29,13 @@ export function TasksPage() {
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
+  const autoSchedule = useAutoSchedule();
+  const clearSchedule = useClearSchedule();
 
   const [showCreate, setShowCreate] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState<Task | null>(null);
+  const [scheduleMsg, setScheduleMsg] = useState('');
 
   function handleToggleDone(task: Task) {
     updateTask.mutate({
@@ -68,8 +72,44 @@ export function TasksPage() {
           />
           <Input value={tagFilter} onChange={setTagFilter} placeholder="Filter by tag" />
         </div>
-        <Button onClick={() => setShowCreate(true)}>New Task</Button>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              clearSchedule.mutate(undefined, {
+                onSuccess: (data) => {
+                  setScheduleMsg(`Cleared ${data.cleared} task${data.cleared === 1 ? '' : 's'}`);
+                  setTimeout(() => setScheduleMsg(''), 3000);
+                },
+              });
+            }}
+            disabled={clearSchedule.isPending}
+          >
+            {clearSchedule.isPending ? 'Clearing...' : 'Clear Schedule'}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              autoSchedule.mutate(undefined, {
+                onSuccess: (data) => {
+                  setScheduleMsg(`Scheduled ${data.scheduled} task${data.scheduled === 1 ? '' : 's'}`);
+                  setTimeout(() => setScheduleMsg(''), 3000);
+                },
+              });
+            }}
+            disabled={autoSchedule.isPending}
+          >
+            {autoSchedule.isPending ? 'Scheduling...' : 'Auto Schedule'}
+          </Button>
+          <Button onClick={() => setShowCreate(true)}>New Task</Button>
+        </div>
       </div>
+
+      {scheduleMsg && (
+        <div className="bg-primary-50 text-primary-700 px-4 py-2 rounded-lg text-sm font-medium">
+          {scheduleMsg}
+        </div>
+      )}
 
       {isLoading ? (
         <LoadingSpinner />

@@ -9,6 +9,7 @@ import {
 } from "../services/reminders";
 import { syncAllCalendars } from "../services/calendar-sync";
 import { deferOverdueTasks } from "../services/task-defer";
+import { autoScheduleAllUsers } from "../services/auto-scheduler";
 import { getBot } from "../services/telegram";
 
 function logJob(name: string, fn: () => Promise<number>) {
@@ -39,6 +40,9 @@ cron.schedule("*/5 * * * *", logJob("deliver", deliverPendingReminders));
 
 // Auto-defer overdue tasks — daily at 00:15
 cron.schedule("15 0 * * *", logJob("defer-tasks", deferOverdueTasks));
+
+// Auto-schedule tasks — daily at 00:20 (after defer at 00:15)
+cron.schedule("20 0 * * *", logJob("auto-schedule", autoScheduleAllUsers));
 
 // Calendar auto-sync — every 15 minutes
 cron.schedule("*/15 * * * *", logJob("calendar-sync", syncAllCalendars));

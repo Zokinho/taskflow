@@ -3,8 +3,10 @@ import { Calendar, dateFnsLocalizer, type View, type EventProps } from 'react-bi
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { enUS } from 'date-fns/locale/en-US';
 import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
 import { useCalendarItems, type MergedCalendarEvent, type CalendarItem } from '@/hooks/useAllCalendarEvents';
 import { useUpdateTask, useDeleteTask } from '@/hooks/useTasks';
+import { useAutoSchedule } from '@/hooks/useAutoSchedule';
 import { EventDetailModal } from './EventDetailModal';
 import { TaskDetailModal } from './TaskDetailModal';
 import type { Task } from '@/types';
@@ -104,6 +106,8 @@ export function DashboardCalendar({ convertedEventIds, onConverted }: DashboardC
   const [view, setView] = useState<View>('week');
   const [selectedEvent, setSelectedEvent] = useState<MergedCalendarEvent | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [scheduleMsg, setScheduleMsg] = useState('');
+  const autoSchedule = useAutoSchedule();
 
   const { items, isLoading, calendars } = useCalendarItems(currentDate);
 
@@ -123,11 +127,22 @@ export function DashboardCalendar({ convertedEventIds, onConverted }: DashboardC
             resource: item,
           };
         }
-        // task — pinned in all-day row at top of each day
         const task = item.data;
+        // If task has both scheduledStart and scheduledEnd, show as timed event
+        if (task.scheduledStart && task.scheduledEnd) {
+          return {
+            id: task.id,
+            title: task.title,
+            start: new Date(task.scheduledStart),
+            end: new Date(task.scheduledEnd),
+            allDay: false,
+            resource: item,
+          };
+        }
+        // Otherwise, pin in all-day row
         const ref = task.scheduledStart ?? task.dueDate!;
         const start = toLocalDate(ref);
-        const end = start; // same day
+        const end = start;
         return {
           id: task.id,
           title: task.title,
@@ -191,8 +206,30 @@ export function DashboardCalendar({ convertedEventIds, onConverted }: DashboardC
 
   return (
     <section>
+      {scheduleMsg && (
+        <div className="bg-primary-50 text-primary-700 px-3 py-1.5 rounded-lg text-xs font-medium mb-2">
+          {scheduleMsg}
+        </div>
+      )}
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-gray-700">Calendar</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-gray-700">Calendar</h3>
+          <Button
+            variant="secondary"
+            className="!px-2.5 !py-1 !text-xs"
+            onClick={() => {
+              autoSchedule.mutate(undefined, {
+                onSuccess: (data) => {
+                  setScheduleMsg(`Scheduled ${data.scheduled} task${data.scheduled === 1 ? '' : 's'}`);
+                  setTimeout(() => setScheduleMsg(''), 3000);
+                },
+              });
+            }}
+            disabled={autoSchedule.isPending}
+          >
+            {autoSchedule.isPending ? 'Scheduling...' : 'Auto Schedule'}
+          </Button>
+        </div>
         <div className="flex items-center gap-3 flex-wrap">
           {legendCalendars.map((cal) => (
             <div key={cal.id} className="flex items-center gap-1">

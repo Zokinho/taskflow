@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma";
 import { asyncHandler, AppError } from "../middleware/errorHandler";
 import { authenticate, AuthRequest } from "../middleware/auth";
+import { autoScheduleTasks, clearScheduledTasks } from "../../services/auto-scheduler";
 
 const router = Router();
 
@@ -105,6 +106,26 @@ router.get(
     });
 
     res.json(tasks);
+  })
+);
+
+// POST /tasks/auto-schedule — Auto-schedule unscheduled tasks
+router.post(
+  "/auto-schedule",
+  asyncHandler(async (req, res) => {
+    const authReq = req as AuthRequest;
+    const scheduled = await autoScheduleTasks(authReq.userId!);
+    res.json({ scheduled });
+  })
+);
+
+// POST /tasks/clear-schedule — Clear scheduled slots on open tasks
+router.post(
+  "/clear-schedule",
+  asyncHandler(async (req, res) => {
+    const authReq = req as AuthRequest;
+    const cleared = await clearScheduledTasks(authReq.userId!);
+    res.json({ cleared });
   })
 );
 

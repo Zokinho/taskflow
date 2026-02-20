@@ -48,6 +48,7 @@ export function getHelpText(): string {
   lines.push("  <code>defer [id] [when]</code> — Reschedule task");
   lines.push("  <code>delete [id]</code> — Delete task");
   lines.push("  <code>note [id] [text]</code> — Add note to task");
+  lines.push("  <code>schedule tasks</code> — Auto-schedule tasks into free slots");
 
   lines.push("\n<b>Schedule:</b>");
   lines.push("  <code>today</code> — Today's schedule");

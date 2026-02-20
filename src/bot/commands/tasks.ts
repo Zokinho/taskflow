@@ -7,6 +7,7 @@ import {
   stripDateAndDuration,
 } from "../helpers/date-parser";
 import { formatTask, shortId, truncate } from "../helpers/format";
+import { autoScheduleTasks } from "../../services/auto-scheduler";
 
 async function findTaskByShortId(userId: string, sid: string) {
   const tasks = await prisma.task.findMany({
@@ -166,6 +167,19 @@ async function handleNote(
   );
 }
 
+async function handleAutoSchedule(
+  ctx: Context,
+  user: User,
+  _match: RegExpMatchArray
+) {
+  const count = await autoScheduleTasks(user.id);
+  if (count === 0) {
+    await ctx.reply("No tasks to schedule. Make sure tasks have an estimated duration and no scheduled time.");
+  } else {
+    await ctx.reply(`Scheduled ${count} task${count === 1 ? "" : "s"} into free calendar slots.`);
+  }
+}
+
 async function handleListTasks(
   ctx: Context,
   user: User,
@@ -187,6 +201,11 @@ async function handleListTasks(
 }
 
 export const taskRoutes: CommandRoute[] = [
+  {
+    pattern: /^(?:schedule\s+tasks|autoschedule)$/i,
+    handler: handleAutoSchedule,
+    description: "schedule tasks / autoschedule — Auto-schedule tasks",
+  },
   {
     pattern: /^task\s+(.+)$/i,
     handler: handleCreateTask,

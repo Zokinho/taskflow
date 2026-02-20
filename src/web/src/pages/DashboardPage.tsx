@@ -1,9 +1,11 @@
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ReminderCard } from '@/components/reminders/ReminderCard';
+import { DashboardCalendar } from '@/components/calendar/DashboardCalendar';
 import { PRIORITY_COLORS, PRIORITY_LABELS } from '@/lib/constants';
 import { useTasks } from '@/hooks/useTasks';
 import { usePeople, useMarkContacted } from '@/hooks/usePeople';
@@ -26,6 +28,17 @@ export function DashboardPage() {
   const { data: reminders } = useReminders({ limit: '5' });
   const markContacted = useMarkContacted();
   const dismissReminder = useDismissReminder();
+  const [banner, setBanner] = useState<string | null>(null);
+
+  const convertedEventIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (tasks) {
+      for (const t of tasks) {
+        if (t.sourceEventId) ids.add(t.sourceEventId);
+      }
+    }
+    return ids;
+  }, [tasks]);
 
   if (tasksLoading || peopleLoading || kidsLoading) return <LoadingSpinner />;
 
@@ -58,6 +71,18 @@ export function DashboardPage() {
         <StatsCard label="Follow-ups Needed" value={needsFollowUp.length} />
         <StatsCard label="Kids" value={kids?.length ?? 0} />
       </div>
+
+      {banner && (
+        <div className="flex items-center justify-between bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-2">
+          <span>{banner}</span>
+          <button onClick={() => setBanner(null)} className="text-green-500 hover:text-green-700 cursor-pointer">&times;</button>
+        </div>
+      )}
+
+      <DashboardCalendar
+        convertedEventIds={convertedEventIds}
+        onConverted={(msg) => setBanner(msg)}
+      />
 
       {activeReminders.length > 0 && (
         <section>

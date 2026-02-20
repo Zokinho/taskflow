@@ -52,7 +52,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 }`
               }
             >
-              <span className="text-base">{link.icon}</span>
+              <span className="text-base w-5 text-center">{link.icon}</span>
               {link.label}
             </NavLink>
           ))}

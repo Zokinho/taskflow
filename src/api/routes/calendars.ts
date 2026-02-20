@@ -121,10 +121,18 @@ router.get(
     const userId = payload.sub;
 
     // Exchange code for tokens
-    const tokens = await exchangeCode(String(code));
+    let tokens;
+    try {
+      tokens = await exchangeCode(String(code));
+    } catch (err) {
+      console.error("Google token exchange failed:", err);
+      res.redirect(`${FRONTEND_URL}/calendars?google-error=${encodeURIComponent("Token exchange failed")}`);
+      return;
+    }
 
     if (!tokens.access_token) {
-      throw new AppError(500, "Google did not return an access token");
+      res.redirect(`${FRONTEND_URL}/calendars?google-error=${encodeURIComponent("No access token returned")}`);
+      return;
     }
 
     // Create calendar record

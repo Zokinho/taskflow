@@ -49,24 +49,18 @@
 /* Header cells — day names in week/day views */
 .rbc-header {
   border-bottom: 2px solid #fbcfe8; /* pink-200 */
-  padding: 0.5rem 0.25rem;
+  padding: 0.625rem 0.25rem;
   font-weight: 600;
   font-size: 0.75rem;
   color: #be185d; /* pink-700 */
   text-transform: uppercase;
   letter-spacing: 0.025em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .rbc-header + .rbc-header {
   border-left: 1px solid #fce7f3;
-}
-
-/* Header row in time views — vertically center the date labels */
-.rbc-time-header .rbc-header {
-  min-height: 2.5rem;
 }
 
 .rbc-header a {
@@ -158,9 +152,10 @@
   text-overflow: ellipsis;
 }
 
-/* All-day row — ensure tasks section has room */
+/* All-day row — ensure tasks section has room and spacing */
 .rbc-allday-cell {
   min-height: 2rem;
+  padding-top: 0.25rem;
 }
 
 /* Task items in calendar — inline action icons on hover */

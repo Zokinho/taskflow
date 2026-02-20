@@ -5,25 +5,35 @@ import type { CommandRoute } from "../dispatcher";
 import { getDayRange, getWeekRange } from "../helpers/date-parser";
 import {
   formatEvent,
-  formatKid,
   escapeHtml,
   truncate,
   shortId,
 } from "../helpers/format";
+import { kidsListKeyboard, kidScheduleKeyboard } from "../helpers/keyboards";
 
-async function handleKidsWeek(ctx: Context, user: User) {
+export async function findKidByShortId(userId: string, sid: string) {
   const kids = await prisma.kid.findMany({
-    where: { userId: user.id },
+    where: {
+      userId,
+      id: { endsWith: sid },
+    },
+  });
+  return kids.length === 1 ? kids[0] : null;
+}
+
+export async function buildKidsWeek(
+  userId: string,
+  timezone: string
+): Promise<{ text: string; kids: Awaited<ReturnType<typeof prisma.kid.findMany>> }> {
+  const kids = await prisma.kid.findMany({
+    where: { userId },
   });
 
   if (kids.length === 0) {
-    await ctx.reply("No kids added yet. Use <code>kid add [name]</code>", {
-      parse_mode: "HTML",
-    });
-    return;
+    return { text: 'No kids added yet. Use <code>kid add [name]</code>', kids: [] };
   }
 
-  const { start, end } = getWeekRange(new Date(), user.timezone);
+  const { start, end } = getWeekRange(new Date(), timezone);
   const events = await prisma.calendarEvent.findMany({
     where: {
       kidId: { in: kids.map((k) => k.id) },
@@ -34,8 +44,7 @@ async function handleKidsWeek(ctx: Context, user: User) {
   });
 
   if (events.length === 0) {
-    await ctx.reply("No kids' events this week.");
-    return;
+    return { text: "No kids' events this week.", kids };
   }
 
   const lines: string[] = ["<b>Kids' Events This Week</b>\n"];
@@ -49,12 +58,63 @@ async function handleKidsWeek(ctx: Context, user: User) {
   for (const [kidName, kidEvents] of grouped) {
     lines.push(`<b>${escapeHtml(kidName)}</b>`);
     for (const e of kidEvents) {
-      lines.push(formatEvent(e, user.timezone));
+      lines.push(formatEvent(e, timezone));
     }
     lines.push("");
   }
 
-  await ctx.reply(truncate(lines.join("\n")), { parse_mode: "HTML" });
+  return { text: lines.join("\n"), kids };
+}
+
+export async function buildKidSchedule(
+  kidId: string,
+  kidName: string,
+  period: string,
+  timezone: string
+): Promise<string> {
+  let start: Date;
+  let end: Date;
+  if (period === "week") {
+    const range = getWeekRange(new Date(), timezone);
+    start = range.start;
+    end = range.end;
+  } else {
+    const ref = period === "tomorrow" || period === "tmrw"
+      ? new Date(Date.now() + 86400000)
+      : new Date();
+    const range = getDayRange(ref, timezone);
+    start = range.start;
+    end = range.end;
+  }
+
+  const events = await prisma.calendarEvent.findMany({
+    where: {
+      kidId,
+      startTime: { gte: start, lt: end },
+    },
+    orderBy: { startTime: "asc" },
+  });
+
+  const label = period === "tmrw" ? "tomorrow" : period;
+
+  if (events.length === 0) {
+    return `No events for <b>${escapeHtml(kidName)}</b> (${label}).`;
+  }
+
+  const lines = [`<b>${escapeHtml(kidName)} \u2014 ${label}</b>\n`];
+  for (const e of events) {
+    lines.push(formatEvent(e, timezone));
+  }
+
+  return lines.join("\n");
+}
+
+async function handleKidsWeek(ctx: Context, user: User) {
+  const { text, kids } = await buildKidsWeek(user.id, user.timezone);
+  await ctx.reply(truncate(text), {
+    parse_mode: "HTML",
+    reply_markup: kids.length > 0 ? kidsListKeyboard(kids) : undefined,
+  });
 }
 
 async function handleKidAdd(
@@ -103,43 +163,11 @@ async function handleKidSchedule(
     return; // Not a kid name — let dispatch continue
   }
 
-  let start: Date;
-  let end: Date;
-  if (period === "week") {
-    const range = getWeekRange(new Date(), user.timezone);
-    start = range.start;
-    end = range.end;
-  } else {
-    const ref = period === "tomorrow"
-      ? new Date(Date.now() + 86400000)
-      : new Date();
-    const range = getDayRange(ref, user.timezone);
-    start = range.start;
-    end = range.end;
-  }
-
-  const events = await prisma.calendarEvent.findMany({
-    where: {
-      kidId: kid.id,
-      startTime: { gte: start, lt: end },
-    },
-    orderBy: { startTime: "asc" },
+  const text = await buildKidSchedule(kid.id, kid.name, period, user.timezone);
+  await ctx.reply(truncate(text), {
+    parse_mode: "HTML",
+    reply_markup: kidScheduleKeyboard(shortId(kid.id)),
   });
-
-  if (events.length === 0) {
-    await ctx.reply(
-      `No events for <b>${escapeHtml(kid.name)}</b> (${period}).`,
-      { parse_mode: "HTML" }
-    );
-    return;
-  }
-
-  const lines = [`<b>${escapeHtml(kid.name)} — ${period}</b>\n`];
-  for (const e of events) {
-    lines.push(formatEvent(e, user.timezone));
-  }
-
-  await ctx.reply(truncate(lines.join("\n")), { parse_mode: "HTML" });
 }
 
 // This handler needs special treatment — it's ambiguous, so we verify

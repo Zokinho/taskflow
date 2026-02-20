@@ -9,6 +9,7 @@ import {
   truncate,
   shortId,
 } from "../helpers/format";
+import { peopleKeyboard } from "../helpers/keyboards";
 
 async function handlePersonAdd(
   ctx: Context,
@@ -89,17 +90,19 @@ async function handleContacted(
   );
 }
 
-async function handleBirthdays(ctx: Context, user: User) {
-  const nowStr = todayStr(user.timezone);
+export async function buildBirthdays(
+  userId: string,
+  timezone: string
+): Promise<string> {
+  const nowStr = todayStr(timezone);
   const now = new Date(nowStr + "T12:00:00Z"); // noon to avoid edge cases
 
-  // Fetch all people + kids with birthdays
   const [people, kids] = await Promise.all([
     prisma.person.findMany({
-      where: { userId: user.id, birthday: { not: null } },
+      where: { userId, birthday: { not: null } },
     }),
     prisma.kid.findMany({
-      where: { userId: user.id, birthday: { not: null } },
+      where: { userId, birthday: { not: null } },
     }),
   ]);
 
@@ -108,7 +111,6 @@ async function handleBirthdays(ctx: Context, user: User) {
   const checkBirthday = (name: string, birthday: Date) => {
     const next = new Date(birthday);
     next.setFullYear(now.getUTCFullYear());
-    // Use UTC month/day comparison since 'now' is constructed as UTC noon
     if (
       next.getUTCMonth() < now.getUTCMonth() ||
       (next.getUTCMonth() === now.getUTCMonth() && next.getUTCDate() < now.getUTCDate())
@@ -133,8 +135,7 @@ async function handleBirthdays(ctx: Context, user: User) {
   upcoming.sort((a, b) => a.daysUntil - b.daysUntil);
 
   if (upcoming.length === 0) {
-    await ctx.reply("No birthdays in the next 30 days.");
-    return;
+    return "No birthdays in the next 30 days.";
   }
 
   const lines = ["<b>Upcoming Birthdays</b>\n"];
@@ -146,17 +147,20 @@ async function handleBirthdays(ctx: Context, user: User) {
           ? "tomorrow"
           : `in ${u.daysUntil} days`;
     lines.push(
-      `  ${escapeHtml(u.name)} — ${u.date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: user.timezone })} (${dayStr})`
+      `  ${escapeHtml(u.name)} \u2014 ${u.date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: timezone })} (${dayStr})`
     );
   }
 
-  await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+  return lines.join("\n");
 }
 
-async function handleFollowups(ctx: Context, user: User) {
+export async function buildFollowups(
+  userId: string,
+  _timezone: string
+): Promise<string> {
   const people = await prisma.person.findMany({
     where: {
-      userId: user.id,
+      userId,
       followUpDays: { not: null },
     },
   });
@@ -172,8 +176,7 @@ async function handleFollowups(ctx: Context, user: User) {
   });
 
   if (overdue.length === 0) {
-    await ctx.reply("No overdue follow-ups. You're all caught up!");
-    return;
+    return "No overdue follow-ups. You're all caught up!";
   }
 
   const lines = ["<b>Overdue Follow-ups</b>\n"];
@@ -184,10 +187,26 @@ async function handleFollowups(ctx: Context, user: User) {
         )
       : null;
     const info = daysSince !== null ? `${daysSince} days ago` : "never contacted";
-    lines.push(`  ${escapeHtml(p.name)} — ${info} (every ${p.followUpDays}d)`);
+    lines.push(`  ${escapeHtml(p.name)} \u2014 ${info} (every ${p.followUpDays}d)`);
   }
 
-  await ctx.reply(truncate(lines.join("\n")), { parse_mode: "HTML" });
+  return lines.join("\n");
+}
+
+async function handleBirthdays(ctx: Context, user: User) {
+  const text = await buildBirthdays(user.id, user.timezone);
+  await ctx.reply(text, {
+    parse_mode: "HTML",
+    reply_markup: peopleKeyboard(),
+  });
+}
+
+async function handleFollowups(ctx: Context, user: User) {
+  const text = await buildFollowups(user.id, user.timezone);
+  await ctx.reply(truncate(text), {
+    parse_mode: "HTML",
+    reply_markup: peopleKeyboard(),
+  });
 }
 
 export const peopleRoutes: CommandRoute[] = [

@@ -1,5 +1,5 @@
 import type { Context } from "grammy";
-import type { User } from "@prisma/client";
+import type { User, Task } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import type { CommandRoute } from "../dispatcher";
 import {
@@ -7,9 +7,10 @@ import {
   stripDateAndDuration,
 } from "../helpers/date-parser";
 import { formatTask, shortId, truncate } from "../helpers/format";
+import { tasksListKeyboard } from "../helpers/keyboards";
 import { autoScheduleTasks } from "../../services/auto-scheduler";
 
-async function findTaskByShortId(userId: string, sid: string) {
+export async function findTaskByShortId(userId: string, sid: string) {
   const tasks = await prisma.task.findMany({
     where: {
       userId,
@@ -17,6 +18,26 @@ async function findTaskByShortId(userId: string, sid: string) {
     },
   });
   return tasks.length === 1 ? tasks[0] : null;
+}
+
+export async function buildTaskList(
+  userId: string,
+  timezone: string
+): Promise<{ text: string; tasks: Task[] }> {
+  const tasks = await prisma.task.findMany({
+    where: { userId, status: { in: ["TODO", "IN_PROGRESS"] } },
+    orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
+    take: 20,
+  });
+
+  if (tasks.length === 0) {
+    return { text: "No open tasks.", tasks: [] };
+  }
+
+  const text =
+    "<b>Open Tasks</b>\n" +
+    tasks.map((t) => formatTask(t, timezone)).join("\n");
+  return { text, tasks };
 }
 
 async function handleCreateTask(
@@ -185,19 +206,11 @@ async function handleListTasks(
   user: User,
   _match: RegExpMatchArray
 ) {
-  const tasks = await prisma.task.findMany({
-    where: { userId: user.id, status: { in: ["TODO", "IN_PROGRESS"] } },
-    orderBy: [{ priority: "desc" }, { dueDate: "asc" }],
-    take: 20,
+  const { text, tasks } = await buildTaskList(user.id, user.timezone);
+  await ctx.reply(truncate(text), {
+    parse_mode: "HTML",
+    reply_markup: tasks.length > 0 ? tasksListKeyboard(tasks) : undefined,
   });
-
-  if (tasks.length === 0) {
-    await ctx.reply("No open tasks.");
-    return;
-  }
-
-  const text = "<b>Open Tasks</b>\n" + tasks.map((t) => formatTask(t, user.timezone)).join("\n");
-  await ctx.reply(truncate(text), { parse_mode: "HTML" });
 }
 
 export const taskRoutes: CommandRoute[] = [

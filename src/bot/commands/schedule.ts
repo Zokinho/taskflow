@@ -13,8 +13,13 @@ import {
   truncate,
   escapeHtml,
 } from "../helpers/format";
+import {
+  scheduleNavKeyboard,
+  weekNavKeyboard,
+  freeSlotsKeyboard,
+} from "../helpers/keyboards";
 
-async function queryDayData(userId: string, start: Date, end: Date) {
+export async function queryDayData(userId: string, start: Date, end: Date) {
   const [events, tasks] = await Promise.all([
     prisma.calendarEvent.findMany({
       where: {
@@ -38,35 +43,34 @@ async function queryDayData(userId: string, start: Date, end: Date) {
   return { events, tasks };
 }
 
-async function handleToday(ctx: Context, user: User) {
-  const { start, end } = getDayRange(new Date(), user.timezone);
-  const { events, tasks } = await queryDayData(user.id, start, end);
-  const text = formatDaySchedule(new Date(), events, tasks, user.timezone);
-  await ctx.reply(truncate(text), { parse_mode: "HTML" });
+export async function buildDaySchedule(
+  userId: string,
+  targetDate: Date,
+  timezone: string
+): Promise<{ text: string; dateStr: string }> {
+  const { start, end } = getDayRange(targetDate, timezone);
+  const { events, tasks } = await queryDayData(userId, start, end);
+  const text = formatDaySchedule(targetDate, events, tasks, timezone);
+  const dateStr = new Intl.DateTimeFormat("en-CA", { timeZone: timezone }).format(targetDate);
+  return { text, dateStr };
 }
 
-async function handleTomorrow(ctx: Context, user: User) {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const { start, end } = getDayRange(tomorrow, user.timezone);
-  const { events, tasks } = await queryDayData(user.id, start, end);
-  const text = formatDaySchedule(tomorrow, events, tasks, user.timezone);
-  await ctx.reply(truncate(text), { parse_mode: "HTML" });
-}
-
-async function handleWeek(ctx: Context, user: User) {
-  const { start, end } = getWeekRange(new Date(), user.timezone);
+export async function buildWeekSchedule(
+  userId: string,
+  timezone: string
+): Promise<string> {
+  const { start, end } = getWeekRange(new Date(), timezone);
   const [events, tasks] = await Promise.all([
     prisma.calendarEvent.findMany({
       where: {
-        calendar: { userId: user.id, isActive: true },
+        calendar: { userId, isActive: true },
         startTime: { gte: start, lt: end },
       },
       orderBy: { startTime: "asc" },
     }),
     prisma.task.findMany({
       where: {
-        userId: user.id,
+        userId,
         status: { in: ["TODO", "IN_PROGRESS"] },
         OR: [
           { dueDate: { gte: start, lt: end } },
@@ -90,25 +94,27 @@ async function handleWeek(ctx: Context, user: User) {
       return ref && ref >= day && ref < dayEnd;
     });
 
-    lines.push(formatDaySchedule(day, dayEvents, dayTasks, user.timezone));
+    lines.push(formatDaySchedule(day, dayEvents, dayTasks, timezone));
     lines.push("");
   }
 
-  await ctx.reply(truncate(lines.join("\n")), { parse_mode: "HTML" });
+  return lines.join("\n");
 }
 
-async function handleFree(ctx: Context, user: User) {
-  const { start, end } = getDayRange(new Date(), user.timezone);
+export async function buildFreeSlots(
+  userId: string,
+  timezone: string
+): Promise<string> {
+  const { start, end } = getDayRange(new Date(), timezone);
   const events = await prisma.calendarEvent.findMany({
     where: {
-      calendar: { userId: user.id, isActive: true },
+      calendar: { userId, isActive: true },
       startTime: { gte: start, lt: end },
       allDay: false,
     },
     orderBy: { startTime: "asc" },
   });
 
-  // Work hours: 8am-6pm in user's timezone
   const workStart = new Date(start.getTime() + 8 * 60 * 60 * 1000);
   const workEnd = new Date(start.getTime() + 18 * 60 * 60 * 1000);
 
@@ -120,10 +126,9 @@ async function handleFree(ctx: Context, user: User) {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
-      timeZone: user.timezone,
+      timeZone: timezone,
     });
 
-  // Find gaps
   const gaps: { from: Date; to: Date }[] = [];
   let cursor = slotStart;
 
@@ -141,8 +146,7 @@ async function handleFree(ctx: Context, user: User) {
   }
 
   if (gaps.length === 0) {
-    await ctx.reply("No free slots today (8:00-18:00).");
-    return;
+    return "No free slots today (8:00-18:00).";
   }
 
   const lines = ["<b>Free Slots Today</b>\n"];
@@ -153,7 +157,41 @@ async function handleFree(ctx: Context, user: User) {
     lines.push(`  ${timeStr(gap.from)} - ${timeStr(gap.to)} (${mins}m)`);
   }
 
-  await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+  return lines.join("\n");
+}
+
+async function handleToday(ctx: Context, user: User) {
+  const { text, dateStr } = await buildDaySchedule(user.id, new Date(), user.timezone);
+  await ctx.reply(truncate(text), {
+    parse_mode: "HTML",
+    reply_markup: scheduleNavKeyboard(dateStr),
+  });
+}
+
+async function handleTomorrow(ctx: Context, user: User) {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const { text, dateStr } = await buildDaySchedule(user.id, tomorrow, user.timezone);
+  await ctx.reply(truncate(text), {
+    parse_mode: "HTML",
+    reply_markup: scheduleNavKeyboard(dateStr),
+  });
+}
+
+async function handleWeek(ctx: Context, user: User) {
+  const text = await buildWeekSchedule(user.id, user.timezone);
+  await ctx.reply(truncate(text), {
+    parse_mode: "HTML",
+    reply_markup: weekNavKeyboard(),
+  });
+}
+
+async function handleFree(ctx: Context, user: User) {
+  const text = await buildFreeSlots(user.id, user.timezone);
+  await ctx.reply(text, {
+    parse_mode: "HTML",
+    reply_markup: freeSlotsKeyboard(),
+  });
 }
 
 async function handleDayName(
@@ -169,10 +207,11 @@ async function handleDayName(
     });
     return;
   }
-  const { start, end } = getDayRange(target, user.timezone);
-  const { events, tasks } = await queryDayData(user.id, start, end);
-  const text = formatDaySchedule(target, events, tasks, user.timezone);
-  await ctx.reply(truncate(text), { parse_mode: "HTML" });
+  const { text, dateStr } = await buildDaySchedule(user.id, target, user.timezone);
+  await ctx.reply(truncate(text), {
+    parse_mode: "HTML",
+    reply_markup: scheduleNavKeyboard(dateStr),
+  });
 }
 
 export const scheduleRoutes: CommandRoute[] = [

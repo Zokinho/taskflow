@@ -8,6 +8,8 @@ import { taskRoutes } from "./commands/tasks";
 import { scheduleRoutes } from "./commands/schedule";
 import { peopleRoutes } from "./commands/people";
 import { kidsRoutes } from "./commands/kids";
+import { registerCallbacks } from "./callbacks";
+import { mainMenuKeyboard } from "./helpers/keyboards";
 
 const bot = getBot();
 if (!bot) {
@@ -20,6 +22,9 @@ registerCommands(taskRoutes);
 registerCommands(scheduleRoutes);
 registerCommands(peopleRoutes);
 registerCommands(kidsRoutes);
+
+// Register inline keyboard callback handler
+registerCallbacks(bot);
 
 // /start — account linking (keep existing logic)
 bot.command("start", async (ctx) => {
@@ -62,8 +67,20 @@ bot.command("start", async (ctx) => {
   });
 
   ctx.reply(
-    `Account linked successfully! You'll now receive reminders here.\n\nLinked to: ${user.name} (${user.email})`
+    `Account linked successfully! You'll now receive reminders here.\n\nLinked to: ${user.name} (${user.email})\n\nUse /menu to get started.`,
+    {
+      parse_mode: "HTML",
+      reply_markup: mainMenuKeyboard(),
+    }
   );
+});
+
+// /menu — show main menu with inline keyboard
+bot.command("menu", async (ctx) => {
+  await ctx.reply("<b>TaskFlow Menu</b>\n\nChoose an action:", {
+    parse_mode: "HTML",
+    reply_markup: mainMenuKeyboard(),
+  });
 });
 
 // /help

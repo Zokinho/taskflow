@@ -24,6 +24,12 @@ interface CalendarEventItem {
   resource: MergedCalendarEvent;
 }
 
+/** Parse as local date (YYYY-MM-DD) to avoid UTC→local shift for all-day events */
+function toLocalDate(iso: string): Date {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 interface DashboardCalendarProps {
   convertedEventIds: Set<string>;
   onConverted: (message: string) => void;
@@ -41,8 +47,8 @@ export function DashboardCalendar({ convertedEventIds, onConverted }: DashboardC
       events.map((ev) => ({
         id: ev.id,
         title: ev.title,
-        start: new Date(ev.startTime),
-        end: new Date(ev.endTime),
+        start: ev.allDay ? toLocalDate(ev.startTime) : new Date(ev.startTime),
+        end: ev.allDay ? toLocalDate(ev.endTime) : new Date(ev.endTime),
         allDay: ev.allDay,
         resource: ev,
       })),

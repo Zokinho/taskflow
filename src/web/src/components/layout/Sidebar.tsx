@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 
 const links = [
   { to: '/', label: 'Dashboard', icon: '▦' },
@@ -22,6 +23,7 @@ interface SidebarProps {
 
 export function Sidebar({ open, onClose }: SidebarProps) {
   const { isAdmin } = useAuth();
+  const { theme, setTheme, themeKeys, themes } = useTheme();
   const allLinks = isAdmin ? [...links, ...adminLinks] : links;
 
   return (
@@ -61,6 +63,21 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         <div className="p-3 border-t border-primary-500/30">
           <div className="px-3 py-2 text-xs text-primary-300">
             TaskFlow v1.0
+          </div>
+          <div className="px-3 pb-1 flex items-center gap-1.5">
+            {themeKeys.map((key) => (
+              <button
+                key={key}
+                title={themes[key].label}
+                onClick={() => setTheme(key)}
+                className="w-5 h-5 rounded-full border-2 transition-all flex-shrink-0"
+                style={{
+                  backgroundColor: themes[key].preview,
+                  borderColor: theme === key ? '#fff' : 'transparent',
+                  boxShadow: theme === key ? '0 0 0 2px rgba(255,255,255,0.4)' : 'none',
+                }}
+              />
+            ))}
           </div>
         </div>
       </aside>

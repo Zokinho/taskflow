@@ -46,8 +46,9 @@ export function tasksListKeyboard(tasks: Task[]): InlineKeyboard {
   const shown = tasks.slice(0, 8);
   for (const t of shown) {
     const sid = shortId(t.id);
-    kb.text(`\u2705 ${sid}`, `td:${sid}`)
-      .text(`\u23e9 ${sid}`, `tf:${sid}`)
+    const name = t.title.length > 25 ? t.title.slice(0, 24) + "\u2026" : t.title;
+    kb.text(`\u2705 ${name}`, `td:${sid}`)
+      .text(`\u23e9`, `tf:${sid}`)
       .row();
   }
   kb.text("Auto Schedule", "autosched").text("Menu", "menu");

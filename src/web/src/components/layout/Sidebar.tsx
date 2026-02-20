@@ -30,12 +30,13 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         <div className="fixed inset-0 bg-black/30 z-40 md:hidden" onClick={onClose} />
       )}
       <aside
-        className={`fixed md:static inset-y-0 left-0 z-50 w-60 bg-white border-r border-primary-100 flex flex-col transform transition-transform md:translate-x-0 ${
+        className={`fixed md:static inset-y-0 left-0 z-50 w-60 bg-gradient-to-b from-primary-600 to-primary-800 flex flex-col transform transition-transform md:translate-x-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-5 border-b border-primary-100">
-          <h1 className="text-xl font-bold text-primary-600">TaskFlow</h1>
+        <div className="p-5 border-b border-primary-500/30">
+          <h1 className="text-xl font-bold text-white tracking-wide">TaskFlow</h1>
+          <p className="text-xs text-primary-200 mt-0.5">Your productivity hub</p>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {allLinks.map((link) => (
@@ -45,10 +46,10 @@ export function Sidebar({ open, onClose }: SidebarProps) {
               end={link.to === '/'}
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-primary-50 text-primary-700 border-l-3 border-primary-500'
-                    : 'text-gray-600 hover:bg-gray-50'
+                    ? 'bg-white/20 text-white shadow-sm backdrop-blur-sm'
+                    : 'text-primary-100 hover:bg-white/10 hover:text-white'
                 }`
               }
             >
@@ -57,6 +58,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             </NavLink>
           ))}
         </nav>
+        <div className="p-3 border-t border-primary-500/30">
+          <div className="px-3 py-2 text-xs text-primary-300">
+            TaskFlow v1.0
+          </div>
+        </div>
       </aside>
     </>
   );

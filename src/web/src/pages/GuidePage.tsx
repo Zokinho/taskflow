@@ -71,6 +71,41 @@ export function GuidePage() {
         </div>
       </Section>
 
+      <Section title="Auto-Scheduler">
+        <div className="text-sm text-gray-600 space-y-3">
+          <p>
+            The auto-scheduler places your unscheduled tasks into free calendar slots
+            automatically. It looks at all your connected calendars and already-scheduled
+            tasks to find gaps, then fills them with tasks that have an
+            <span className="font-medium"> estimated duration</span> set.
+          </p>
+          <div>
+            <h4 className="font-medium text-gray-800 mb-1">How It Works</h4>
+            <ol className="list-decimal list-inside space-y-1 pl-1">
+              <li>Tasks are sorted by <span className="font-medium">priority</span> (urgent first) then by <span className="font-medium">due date</span> (earliest first).</li>
+              <li>The scheduler scans the next <span className="font-medium">7 days</span> of your calendar during your <span className="font-medium">work hours</span> (default 09:00&ndash;17:00, Mon&ndash;Fri).</li>
+              <li>Each task is placed into the <span className="font-medium">first available slot</span> that fits its estimated duration, with a <span className="font-medium">10-minute buffer</span> between tasks.</li>
+              <li>Tasks without an estimated duration are skipped.</li>
+            </ol>
+          </div>
+          <div>
+            <h4 className="font-medium text-gray-800 mb-1">How to Use</h4>
+            <ul className="list-disc list-inside space-y-1 pl-1">
+              <li><span className="font-medium">Telegram:</span> send <span className="font-mono text-primary-600">schedule tasks</span> or <span className="font-mono text-primary-600">autoschedule</span>, or tap <span className="font-medium">Auto Schedule</span> in the task list buttons.</li>
+              <li><span className="font-medium">Web:</span> scheduled tasks appear on the calendar in <span className="text-indigo-600 font-medium">indigo</span> with dashed borders.</li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-medium text-gray-800 mb-1">Customizing Work Hours</h4>
+            <p>
+              You can configure your work hours and work days in your account preferences.
+              Set <span className="font-mono text-primary-600">workHoursStart</span> / <span className="font-mono text-primary-600">workHoursEnd</span> (e.g. <span className="font-mono text-primary-600">"08:00"</span>, <span className="font-mono text-primary-600">"18:00"</span>)
+              and <span className="font-mono text-primary-600">workDays</span> (array of day numbers, 0=Sun through 6=Sat).
+            </p>
+          </div>
+        </div>
+      </Section>
+
       <Section title="Task Commands">
         <CommandTable
           commands={[
@@ -80,6 +115,7 @@ export function GuidePage() {
             { cmd: 'defer [id] [when]', desc: 'Reschedule a task (e.g. "defer 3 friday")' },
             { cmd: 'delete [id]', desc: 'Remove a task permanently' },
             { cmd: 'note [id] [text]', desc: 'Add a note to a task' },
+            { cmd: 'schedule tasks', desc: 'Auto-schedule tasks into free calendar slots' },
           ]}
         />
       </Section>

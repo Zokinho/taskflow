@@ -9,61 +9,87 @@ TaskFlow is a self-hosted productivity system that combines:
 - Task management with auto-scheduling
 - Personal CRM (people tracker with birthdays, notes, follow-up reminders)
 - Kids' appointment tracking
-- Telegram bot with voice support (via Whisper)
+- Telegram bot with voice support and inline keyboards
 - Web dashboard (React PWA)
 
 Target user: Busy parent juggling multiple calendars who values privacy.
 
 ## Tech Stack
 
-- **Backend:** Node.js + Express + TypeScript
-- **Database:** PostgreSQL + Prisma ORM
-- **Telegram Bot:** grammy
-- **Voice:** OpenAI Whisper API
-- **Calendar APIs:** googleapis, @microsoft/microsoft-graph-client
-- **Web App:** React + Vite + Tailwind (PWA)
+- **Backend:** Node.js + Express 5 + TypeScript
+- **Database:** PostgreSQL + Prisma 6
+- **Telegram Bot:** grammy (inline keyboards, voice)
+- **Voice:** OpenAI gpt-4o-mini-transcribe
+- **Calendar APIs:** googleapis, Microsoft Graph (direct HTTP)
+- **ICS Parsing:** node-ical (for Proton)
+- **Web App:** React 19 + Vite + Tailwind v4 + TanStack Query + React Router v7
 - **Background Jobs:** node-cron
-- **Hosting:** Hetzner VPS (~$5-6/month)
+- **Reverse Proxy:** Caddy (auto-SSL)
+- **Hosting:** Hetzner VPS, Docker Compose
 
 ## Project Structure
 
 ```
 taskflow/
 ├── prisma/
-│   └── schema.prisma        # Database schema (DONE)
+│   └── schema.prisma              # Database schema (8 models + enums)
 ├── src/
 │   ├── api/
-│   │   ├── index.ts         # Express setup (DONE - needs route imports)
+│   │   ├── index.ts               # Express setup, routes, middleware
 │   │   ├── routes/
-│   │   │   ├── auth.ts      # TODO: JWT auth, login, register
-│   │   │   ├── tasks.ts     # TODO: Task CRUD
-│   │   │   ├── people.ts    # TODO: People CRUD
-│   │   │   ├── calendars.ts # TODO: Calendar management
-│   │   │   └── kids.ts      # TODO: Kids CRUD
+│   │   │   ├── auth.ts            # JWT auth (register, login, refresh)
+│   │   │   ├── tasks.ts           # Task CRUD
+│   │   │   ├── people.ts          # People CRUD + contacted
+│   │   │   ├── calendars.ts       # Calendar CRUD + Google/Microsoft OAuth + sync
+│   │   │   ├── kids.ts            # Kids CRUD + events
+│   │   │   └── reminders.ts       # Reminders API + Telegram link/unlink
 │   │   └── middleware/
-│   │       ├── auth.ts      # TODO: JWT verification
-│   │       └── errorHandler.ts # TODO: Error handling
+│   │       ├── auth.ts            # JWT verification, token generation
+│   │       └── errorHandler.ts    # AppError, asyncHandler, Prisma/Zod error mapping
 │   ├── bot/
-│   │   ├── index.ts         # Bot setup (DONE)
-│   │   ├── voice.ts         # Voice handling (DONE)
+│   │   ├── index.ts               # Bot entry (commands, voice, text, /menu)
+│   │   ├── callbacks.ts           # Inline keyboard callback handler
+│   │   ├── dispatcher.ts          # Command routing with pattern matching
+│   │   ├── middleware.ts           # resolveUser(chatId)
+│   │   ├── voice.ts               # Voice-to-text transcription
+│   │   ├── helpers/
+│   │   │   ├── keyboards.ts       # InlineKeyboard factory functions
+│   │   │   ├── format.ts          # Message formatting (tasks, events, people, kids)
+│   │   │   └── date-parser.ts     # chrono-node wrapping, timezone-aware ranges
 │   │   └── commands/
-│   │       ├── tasks.ts     # Task commands (DONE)
-│   │       ├── schedule.ts  # Schedule commands (DONE)
-│   │       ├── people.ts    # People commands (DONE)
-│   │       └── kids.ts      # Kids commands (DONE)
+│   │       ├── tasks.ts           # task/done/defer/delete/note/tasks/autoschedule
+│   │       ├── schedule.ts        # today/tomorrow/week/free/dayname
+│   │       ├── people.ts          # person add/lookup, contacted, birthdays, followups
+│   │       └── kids.ts            # kids, kid add, [kidname] schedule
 │   ├── services/
-│   │   ├── scheduler.ts     # Auto-scheduling (DONE)
-│   │   ├── calendar-sync.ts # TODO: Calendar provider sync
-│   │   ├── reminders.ts     # TODO: Proactive messages
-│   │   └── whisper.ts       # TODO: Extract from voice.ts
-│   └── web/                 # TODO: React PWA
+│   │   ├── auto-scheduler.ts      # Greedy task auto-scheduling into free slots
+│   │   ├── calendar-sync.ts       # Google/Microsoft/Proton sync + kid auto-tagging
+│   │   ├── google-auth.ts         # Google OAuth2 helpers
+│   │   ├── microsoft-auth.ts      # Microsoft OAuth2 (direct HTTP)
+│   │   ├── telegram.ts            # grammy Bot singleton + message sender
+│   │   ├── reminders.ts           # Reminder generators + delivery
+│   │   └── task-defer.ts          # Per-user timezone-aware auto-defer
+│   ├── scripts/
+│   │   └── run-cron.ts            # node-cron job runner (6 jobs)
+│   ├── lib/
+│   │   └── prisma.ts              # Prisma client singleton
+│   └── web/                       # React PWA (separate package.json)
+│       ├── src/
+│       │   ├── components/        # UI components, modals, forms
+│       │   ├── pages/             # Login, Register, Dashboard, Tasks, People, etc.
+│       │   ├── hooks/             # TanStack Query hooks, auth, calendar items
+│       │   └── lib/               # API client, auth context
+│       └── vite.config.ts         # Vite + PWA config
+├── Dockerfile                     # 4-stage build (deps, web, api, production)
+├── docker-compose.yml             # Local dev (PostgreSQL)
+├── docker-compose.prod.yml        # Production (postgres, app, caddy)
+├── Caddyfile                      # Reverse proxy config
+├── docker-entrypoint.sh           # Migration + static copy + process start
 ├── scripts/
-│   ├── sync-calendars.ts    # TODO: Cron job
-│   └── send-reminders.ts    # TODO: Cron job
-├── .env.example             # Environment template (DONE)
-├── docker-compose.yml       # Local PostgreSQL (DONE)
-├── package.json             # Dependencies (DONE)
-└── tsconfig.json            # TypeScript config (DONE)
+│   ├── deploy.sh                  # rsync + docker compose up
+│   └── backup-db.sh              # pg_dump + gzip + 7-day rotation
+├── .env.example                   # Dev environment template
+└── .env.prod.example              # Production environment template
 ```
 
 ## Getting Started
@@ -72,8 +98,8 @@ taskflow/
 # 1. Install dependencies
 npm install
 
-# 2. Start PostgreSQL
-docker-compose up -d
+# 2. Start PostgreSQL (uses port 5433)
+sudo docker-compose up -d
 
 # 3. Copy and configure environment
 cp .env.example .env
@@ -85,152 +111,116 @@ npx prisma migrate dev
 # 5. Start development
 npm run dev          # API server (terminal 1)
 npm run bot          # Telegram bot (terminal 2)
+npm run web          # Web app (terminal 3)
+npm run cron         # Background jobs (terminal 4)
 ```
 
 ## Database Schema
 
-Already defined in `prisma/schema.prisma`. Key models:
-- `User` — multi-tenant, stores Telegram chat ID, preferences
-- `Calendar` — connected calendars (Google, Microsoft, Proton ICS, Exchange)
-- `CalendarEvent` — cached events from calendars
-- `Task` — tasks with auto-scheduling fields
-- `Person` — CRM contacts with birthday, kids, notes
-- `Kid` — for tagging kids' appointments
+Defined in `prisma/schema.prisma`. Key models:
+- `User` — multi-tenant, stores Telegram chat ID, timezone, preferences
+- `RefreshToken` — single-use JWT refresh tokens with rotation
+- `Calendar` — connected calendars (Google, Microsoft, Proton ICS, Exchange) with sync tokens
+- `CalendarEvent` — cached events with kid auto-tagging
+- `Task` — tasks with priority, scheduling fields, estimated duration
+- `Person` — CRM contacts with birthday, follow-up tracking, tags, notes
+- `Kid` — children with keyword-based event auto-tagging
 - `Reminder` — proactive messages (birthdays, follow-ups, briefings)
 
-## Development Phases
-
-### Phase 1: Foundation (PARTIALLY DONE)
-- [x] Project setup (TypeScript, Express, Prisma)
-- [x] Database schema
-- [ ] API route stubs
-- [ ] Auth middleware (JWT)
-- [ ] Error handling middleware
-
-### Phase 2: Tasks Core
-- [x] Task bot commands
-- [x] Auto-scheduling algorithm
-- [ ] Task API routes
-- [ ] Reschedule incomplete tasks (cron)
-
-### Phase 3: Telegram Bot (MOSTLY DONE)
-- [x] Bot setup with grammy
-- [x] Task commands
-- [x] Schedule commands
-- [x] People commands
-- [x] Kids commands
-- [x] Voice message handling
-
-### Phase 4: People Tracker
-- [x] People bot commands
-- [ ] People API routes
-- [ ] Birthday reminder cron
-- [ ] Follow-up nudge cron
-
-### Phase 5: Calendar Sync
-- [ ] Google Calendar OAuth + sync
-- [ ] Microsoft Graph OAuth + sync
-- [ ] Exchange (via Microsoft Graph)
-- [ ] Proton ICS polling
-- [ ] Event-to-task conversion
-- [ ] Auto-tag kids from event titles
-
-### Phase 6: Proactive Messages
-- [ ] Morning briefing cron
-- [ ] Evening review cron
-- [ ] Birthday reminders
-- [ ] Follow-up nudges
-
-### Phase 7: Web App
-- [ ] React + Vite setup
-- [ ] Auth flow
-- [ ] Task dashboard
-- [ ] Calendar view
-- [ ] People list
-- [ ] PWA configuration
-
-### Phase 8: Deploy
-- [ ] Hetzner VPS setup
-- [ ] Docker production compose
-- [ ] SSL via Let's Encrypt
-- [ ] Backup script
-
-## Key Files to Work On Next
-
-1. `src/api/routes/auth.ts` — JWT auth (register, login, token refresh)
-2. `src/api/middleware/auth.ts` — Protect routes
-3. `src/api/routes/tasks.ts` — CRUD for tasks
-4. `src/services/calendar-sync.ts` — Start with Google Calendar
-
-## Environment Variables Needed
+## Environment Variables
 
 ```
-DATABASE_URL          # PostgreSQL connection
-JWT_SECRET            # For auth tokens
-TELEGRAM_BOT_TOKEN    # From @BotFather
-OPENAI_API_KEY        # For Whisper transcription
-GOOGLE_CLIENT_ID      # Google OAuth
+DATABASE_URL              # PostgreSQL connection
+JWT_SECRET                # For auth tokens
+TELEGRAM_BOT_TOKEN        # From @BotFather
+OPENAI_API_KEY            # For voice transcription
+GOOGLE_CLIENT_ID          # Google OAuth
 GOOGLE_CLIENT_SECRET
-MICROSOFT_CLIENT_ID   # Microsoft OAuth
+GOOGLE_REDIRECT_URI       # e.g. https://taskflow.veloxia.ca/api/calendars/google/callback
+MICROSOFT_CLIENT_ID       # Microsoft OAuth (via Entra)
 MICROSOFT_CLIENT_SECRET
+MICROSOFT_REDIRECT_URI    # e.g. https://taskflow.veloxia.ca/api/calendars/microsoft/callback
+FRONTEND_URL              # e.g. https://taskflow.veloxia.ca
 ```
 
-## Multi-Tenant Notes
+## Architecture Notes
 
-The schema is already multi-tenant:
-- Every table has `userId` foreign key
-- All queries must be scoped by user
-- Telegram `chatId` maps to user on first message
+- **Multi-tenant:** Every table has `userId` FK, all queries scoped by user
+- **Auth:** bcrypt(12), 15min access tokens + 7-day refresh tokens with single-use rotation
+- **Rate limiting:** 10 requests per 15 minutes on auth endpoints
+- **Calendar sync:** Incremental (delta sync for Google/Microsoft, full re-fetch for ICS)
+- **Auto-scheduler:** Greedy algorithm — sorts by priority then due date, places into first available slot within work hours over 7-day lookahead, 10-min buffer between tasks
+- **Auto-defer:** Nightly cron at 00:15 moves overdue scheduled tasks to next day, per-user timezone
+- **Telegram bot:** Pattern-based command dispatcher, inline keyboards with in-place message editing, voice via OpenAI transcription
+- **Web PWA:** Pink theme, service worker with navigateFallbackDenylist for OAuth callbacks
+
+## Cron Jobs (run-cron.ts)
+
+| Schedule | Job |
+|----------|-----|
+| `0 5 0 * * *` | Generate birthday reminders (7-day lookahead) |
+| `0 10 0 * * *` | Generate follow-up reminders |
+| `0 0 6 * * *` | Morning briefing |
+| `0 0 20 * * *` | Evening review |
+| `*/5 * * * *` | Deliver pending reminders via Telegram |
+| `*/15 * * * *` | Auto-sync all active calendars |
+| `15 0 * * *` | Auto-defer overdue tasks |
 
 ## Commands Reference
 
 ### Telegram Bot Commands
 
 **Tasks:**
-- `task [title]` — create task
+- `task [title] [date] [duration]` — create task
+- `tasks` — list open tasks
 - `done [id]` — complete task
 - `defer [id] [when]` — reschedule
 - `delete [id]` — remove task
 - `note [id] [text]` — add note
+- `schedule tasks` / `autoschedule` — auto-schedule tasks into free slots
 
 **Schedule:**
 - `today` — today's schedule
 - `tomorrow` — tomorrow's schedule
 - `week` — week overview
-- `free` — free time slots
-- `monday`, `tuesday`, etc. — specific day
+- `free` — free time slots (8:00-18:00)
+- `monday` .. `sunday` — specific day
 
 **People:**
 - `person add [name]` — add contact
 - `person [name]` — lookup contact
 - `contacted [name]` — mark as contacted
-- `birthdays` — upcoming birthdays
-- `followups` — reconnection suggestions
+- `birthdays` — upcoming birthdays (30 days)
+- `followups` — overdue follow-ups
 
 **Kids:**
-- `kids` — all kids' appointments this week
+- `kids` — all kids' events this week
 - `kid add [name]` — add a kid
 - `[kidname] today/tomorrow/week` — kid's schedule
 
-**Voice:**
-- Send any voice message — transcribed and parsed as command
+**Other:**
+- `/menu` — main menu with inline keyboard buttons
+- `/help` — command reference
+- Send a voice message — transcribed and executed as command
 
-## Testing
+## Deployment
 
 ```bash
-# Test bot locally
-npm run bot
+# Deploy to VPS
+./scripts/deploy.sh root@178.156.227.137
 
-# In Telegram, message your bot:
-/start
-task Test task tomorrow 30m
-today
-done [id]
+# Manual backup
+ssh root@178.156.227.137 '/root/taskflow/scripts/backup-db.sh'
 ```
 
-## Notes
+Production runs via `docker-compose.prod.yml` with three containers: postgres, app (API + bot + cron), and caddy (reverse proxy with auto-SSL).
 
-- Proton Calendar has no API — we poll ICS feeds (read-only)
-- Voice uses OpenAI Whisper (~$0.006/minute)
-- The bot auto-creates users on first message
-- Kids are auto-tagged by matching keywords in event titles
+## Known Gotchas
+
+- Express 5 types make `req.params.id` typed as `string | string[]` — use a helper to extract as `string`
+- PWA service worker intercepts OAuth callbacks — `navigateFallbackDenylist: [/^\/api\//]` required
+- Express behind Caddy needs `trust proxy` — `app.set("trust proxy", 1)` or rate-limit crashes
+- Docker `.env` files don't strip quotes — use `KEY=value` not `KEY="value"`
+- Prisma JSON `path` filter with `equals: null` causes TS errors — filter in JS instead
+- `new Date().setHours(0,0,0,0)` gives server-local midnight — always use `Intl.DateTimeFormat` with `timeZone`
+- Microsoft `@azure/msal-node` doesn't expose refresh tokens — use direct HTTP to `/oauth2/v2.0/token`

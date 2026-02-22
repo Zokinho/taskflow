@@ -227,6 +227,29 @@ export function GuidePage() {
         </div>
       </Section>
 
+      <Section title="Password &amp; Account">
+        <div className="text-sm text-gray-600 space-y-3">
+          <div>
+            <h4 className="font-medium text-gray-800 mb-1">Change Password</h4>
+            <p>
+              Go to <span className="font-medium">Settings</span> and scroll down to the
+              <span className="font-medium"> Change Password</span> section. Enter your current
+              password and your new password to update it.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-medium text-gray-800 mb-1">Forgot Password</h4>
+            <p>
+              If you've forgotten your password and have Telegram linked to your account,
+              click <span className="font-medium">Forgot password?</span> on the login page.
+              Enter your email and a 6-character reset code will be sent to your
+              Telegram. Enter the code along with your new password to regain access.
+              The code expires after 15 minutes.
+            </p>
+          </div>
+        </div>
+      </Section>
+
       <Section title="Reminders">
         <div className="text-sm text-gray-600 space-y-2">
           <p>TaskFlow generates reminders automatically via background cron jobs:</p>

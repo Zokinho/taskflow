@@ -1,4 +1,15 @@
 taskflow.veloxia.ca {
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Cross-Origin-Embedder-Policy "require-corp"
+		Cross-Origin-Opener-Policy "same-origin"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
 	# API requests → Express backend
 	handle /api/* {
 		uri strip_prefix /api
@@ -8,6 +19,14 @@ taskflow.veloxia.ca {
 	# Everything else → React SPA static files
 	handle {
 		root * /srv/static
+
+		# Hashed assets get long cache, HTML/manifests get no-cache
+		header /assets/* Cache-Control "public, max-age=31536000, immutable"
+		header /index.html Cache-Control "no-cache, no-store, must-revalidate"
+		header /manifest.webmanifest Cache-Control "no-cache, must-revalidate"
+		header /robots.txt Cache-Control "no-cache, must-revalidate"
+		header /sitemap.xml Cache-Control "no-cache, must-revalidate"
+
 		try_files {path} /index.html
 		file_server
 	}

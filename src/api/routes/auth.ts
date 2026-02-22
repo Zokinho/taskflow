@@ -1,4 +1,5 @@
 import { Router } from "express";
+import crypto from "crypto";
 import bcrypt from "bcrypt";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
@@ -12,6 +13,7 @@ import {
   generateRefreshToken,
   verifyRefreshToken,
 } from "../middleware/auth";
+import { sendTelegramMessage } from "../../services/telegram";
 
 const router = Router();
 
@@ -121,6 +123,84 @@ router.post(
   })
 );
 
+// --- Password Reset ---
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  email: z.string().email(),
+  code: z.string(),
+  newPassword: z.string().min(8),
+});
+
+router.post(
+  "/forgot-password",
+  asyncHandler(async (req, res) => {
+    const { email } = forgotPasswordSchema.parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (user?.telegramChatId) {
+      const code = crypto.randomBytes(3).toString("hex").toUpperCase();
+      const prefs = (user.preferences as Record<string, unknown>) ?? {};
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          preferences: {
+            ...prefs,
+            passwordResetCode: code,
+            passwordResetExpires: Date.now() + 15 * 60 * 1000,
+          },
+        },
+      });
+
+      await sendTelegramMessage(
+        user.telegramChatId,
+        `Your TaskFlow password reset code is: <b>${code}</b>\n\nThis code expires in 15 minutes. If you didn't request this, you can ignore it.`
+      );
+    }
+
+    res.json({ success: true });
+  })
+);
+
+router.post(
+  "/reset-password",
+  asyncHandler(async (req, res) => {
+    const { email, code, newPassword } = resetPasswordSchema.parse(req.body);
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    const prefs = (user?.preferences as Record<string, unknown>) ?? {};
+
+    const storedCode = prefs.passwordResetCode as string | undefined;
+    const expires = prefs.passwordResetExpires as number | undefined;
+
+    if (!user || !storedCode || !expires || storedCode !== code || Date.now() > expires) {
+      throw new AppError(400, "Invalid or expired reset code");
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    const { passwordResetCode: _, passwordResetExpires: __, ...cleanPrefs } = prefs;
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        preferences: cleanPrefs as Record<string, string | number | boolean>,
+      },
+    });
+
+    // Invalidate all sessions
+    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+
+    res.json({ success: true });
+  })
+);
+
 // --- Protected endpoints ---
 
 router.get(
@@ -162,6 +242,37 @@ router.patch(
       select: userSelect,
     });
     res.json(user);
+  })
+);
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string(),
+  newPassword: z.string().min(8),
+});
+
+router.post(
+  "/change-password",
+  authenticate,
+  asyncHandler(async (req: AuthRequest, res) => {
+    const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { id: req.userId },
+      select: { passwordHash: true },
+    });
+
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) {
+      throw new AppError(401, "Current password is incorrect");
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: { passwordHash },
+    });
+
+    res.json({ success: true });
   })
 );
 

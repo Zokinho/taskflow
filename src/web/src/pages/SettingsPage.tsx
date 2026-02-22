@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { api } from '@/lib/api';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
@@ -66,6 +67,34 @@ export function SettingsPage() {
       setMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to save settings.' });
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Change password state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMessage, setPwMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  async function handleChangePassword(e: FormEvent) {
+    e.preventDefault();
+    setPwMessage(null);
+    if (newPassword !== confirmPassword) {
+      setPwMessage({ type: 'error', text: 'New passwords do not match.' });
+      return;
+    }
+    setPwSaving(true);
+    try {
+      await api.post('/auth/change-password', { currentPassword, newPassword });
+      setPwMessage({ type: 'success', text: 'Password changed.' });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPwMessage({ type: 'error', text: err instanceof Error ? err.message : 'Failed to change password.' });
+    } finally {
+      setPwSaving(false);
     }
   }
 
@@ -141,6 +170,23 @@ export function SettingsPage() {
 
           <Button type="submit" disabled={saving} className="w-full">
             {saving ? 'Saving...' : 'Save Settings'}
+          </Button>
+        </Card>
+      </form>
+
+      <form onSubmit={handleChangePassword}>
+        <Card className="space-y-5">
+          <h3 className="text-base font-semibold text-gray-800">Change Password</h3>
+          {pwMessage && (
+            <div className={`rounded-lg px-4 py-2 text-sm ${pwMessage.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+              {pwMessage.text}
+            </div>
+          )}
+          <Input label="Current password" type="password" value={currentPassword} onChange={setCurrentPassword} required />
+          <Input label="New password" type="password" value={newPassword} onChange={setNewPassword} required />
+          <Input label="Confirm new password" type="password" value={confirmPassword} onChange={setConfirmPassword} required />
+          <Button type="submit" disabled={pwSaving} className="w-full">
+            {pwSaving ? 'Changing...' : 'Change Password'}
           </Button>
         </Card>
       </form>

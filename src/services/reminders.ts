@@ -46,6 +46,16 @@ function dayBoundsUtc(dateStr: string, timezone: string): { dayStart: Date; dayE
   return { dayStart, dayEnd };
 }
 
+/**
+ * Convert a local time (e.g. "07:00") on a given date to a UTC Date,
+ * accounting for the user's timezone.
+ */
+function localTimeToUtc(dateStr: string, timeStr: string, timezone: string): Date {
+  const [hour, minute] = timeStr.split(":").map(Number);
+  const midnight = tzMidnight(dateStr, timezone);
+  return new Date(midnight.getTime() + (hour * 60 + minute) * 60 * 1000);
+}
+
 function isBirthdayInRange(
   birthday: Date,
   todayStr: string,
@@ -227,8 +237,12 @@ export async function generateMorningBriefings(): Promise<number> {
   let created = 0;
 
   for (const user of users) {
+    const prefs = (user.preferences ?? {}) as Record<string, unknown>;
+    if (prefs.morningBriefingEnabled === false) continue;
+
+    const briefingTime = typeof prefs.morningBriefingTime === "string" ? prefs.morningBriefingTime : "07:00";
     const todayDate = userToday(user.timezone);
-    const scheduledAt = new Date(todayDate + "T06:00:00Z");
+    const scheduledAt = localTimeToUtc(todayDate, briefingTime, user.timezone);
 
     const existing = await prisma.reminder.findFirst({
       where: {
@@ -327,8 +341,12 @@ export async function generateEveningReviews(): Promise<number> {
   let created = 0;
 
   for (const user of users) {
+    const prefs = (user.preferences ?? {}) as Record<string, unknown>;
+    if (prefs.eveningReviewEnabled === false) continue;
+
+    const reviewTime = typeof prefs.eveningReviewTime === "string" ? prefs.eveningReviewTime : "20:00";
     const todayDate = userToday(user.timezone);
-    const scheduledAt = new Date(todayDate + "T20:00:00Z");
+    const scheduledAt = localTimeToUtc(todayDate, reviewTime, user.timezone);
 
     const existing = await prisma.reminder.findFirst({
       where: {

@@ -29,11 +29,11 @@ cron.schedule("5 0 * * *", logJob("birthdays", generateBirthdayReminders));
 // Follow-up nudges — daily at 00:10
 cron.schedule("10 0 * * *", logJob("follow-ups", generateFollowUpReminders));
 
-// Morning briefings — daily at 06:00 UTC
-cron.schedule("0 6 * * *", logJob("morning", generateMorningBriefings));
+// Morning briefings — hourly (per-user preferred time, idempotent)
+cron.schedule("0 * * * *", logJob("morning", generateMorningBriefings));
 
-// Evening reviews — daily at 20:00 UTC
-cron.schedule("0 20 * * *", logJob("evening", generateEveningReviews));
+// Evening reviews — hourly (per-user preferred time, idempotent)
+cron.schedule("30 * * * *", logJob("evening", generateEveningReviews));
 
 // Deliver pending reminders — every 5 minutes
 cron.schedule("*/5 * * * *", logJob("deliver", deliverPendingReminders));

@@ -28,6 +28,10 @@ export function SettingsPage() {
   const [workStart, setWorkStart] = useState((prefs.workHoursStart as string) ?? '09:00');
   const [workEnd, setWorkEnd] = useState((prefs.workHoursEnd as string) ?? '17:00');
   const [workDays, setWorkDays] = useState<string[]>((prefs.workDays as string[]) ?? DEFAULT_WORK_DAYS);
+  const [morningEnabled, setMorningEnabled] = useState(prefs.morningBriefingEnabled !== false);
+  const [morningTime, setMorningTime] = useState((prefs.morningBriefingTime as string) ?? '07:00');
+  const [eveningEnabled, setEveningEnabled] = useState(prefs.eveningReviewEnabled !== false);
+  const [eveningTime, setEveningTime] = useState((prefs.eveningReviewTime as string) ?? '20:00');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -39,6 +43,10 @@ export function SettingsPage() {
       setWorkStart((p.workHoursStart as string) ?? '09:00');
       setWorkEnd((p.workHoursEnd as string) ?? '17:00');
       setWorkDays((p.workDays as string[]) ?? DEFAULT_WORK_DAYS);
+      setMorningEnabled(p.morningBriefingEnabled !== false);
+      setMorningTime((p.morningBriefingTime as string) ?? '07:00');
+      setEveningEnabled(p.eveningReviewEnabled !== false);
+      setEveningTime((p.eveningReviewTime as string) ?? '20:00');
     }
   }, [user]);
 
@@ -60,6 +68,10 @@ export function SettingsPage() {
           workHoursStart: workStart,
           workHoursEnd: workEnd,
           workDays,
+          morningBriefingEnabled: morningEnabled,
+          morningBriefingTime: morningTime,
+          eveningReviewEnabled: eveningEnabled,
+          eveningReviewTime: eveningTime,
         },
       });
       setMessage({ type: 'success', text: 'Settings saved.' });
@@ -165,6 +177,47 @@ export function SettingsPage() {
                   {label}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Daily Reviews */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Daily Reviews</label>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMorningEnabled(!morningEnabled)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${morningEnabled ? 'bg-primary-500' : 'bg-gray-200'}`}
+                >
+                  <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${morningEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+                <span className="text-sm text-gray-700">Morning briefing at</span>
+                <input
+                  type="time"
+                  value={morningTime}
+                  onChange={(e) => setMorningTime(e.target.value)}
+                  disabled={!morningEnabled}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400 disabled:opacity-50 disabled:bg-gray-50"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEveningEnabled(!eveningEnabled)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${eveningEnabled ? 'bg-primary-500' : 'bg-gray-200'}`}
+                >
+                  <span className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${eveningEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
+                <span className="text-sm text-gray-700">Evening review at</span>
+                <input
+                  type="time"
+                  value={eveningTime}
+                  onChange={(e) => setEveningTime(e.target.value)}
+                  disabled={!eveningEnabled}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400 disabled:opacity-50 disabled:bg-gray-50"
+                />
+              </div>
             </div>
           </div>
 

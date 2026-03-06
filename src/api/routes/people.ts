@@ -12,11 +12,11 @@ router.use(authenticate);
 
 const createPersonSchema = z.object({
   name: z.string().min(1).max(200),
-  email: z.string().email().optional(),
-  phone: z.string().max(50).optional(),
-  birthday: z.coerce.date().optional(),
-  notes: z.string().max(10000).optional(),
-  followUpDays: z.number().int().positive().optional(),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().max(50).nullable().optional(),
+  birthday: z.coerce.date().nullable().optional(),
+  notes: z.string().max(10000).nullable().optional(),
+  followUpDays: z.number().int().positive().nullable().optional(),
   tags: z.array(z.string().max(100)).max(20).optional(),
 });
 

@@ -12,8 +12,8 @@ router.use(authenticate);
 
 const createKidSchema = z.object({
   name: z.string().min(1).max(200),
-  birthday: z.coerce.date().optional(),
-  notes: z.string().max(10000).optional(),
+  birthday: z.coerce.date().nullable().optional(),
+  notes: z.string().max(10000).nullable().optional(),
   keywords: z.array(z.string().max(100)).max(20).optional(),
 });
 

@@ -9,7 +9,7 @@ import { CalendarCard } from '@/components/calendars/CalendarCard';
 import { CalendarForm } from '@/components/calendars/CalendarForm';
 import { EventList } from '@/components/calendars/EventList';
 import { TaskForm } from '@/components/tasks/TaskForm';
-import { useCalendars, useCreateCalendar, useUpdateCalendar, useDeleteCalendar, useGoogleAuthUrl, useMicrosoftAuthUrl, useSyncCalendar, useConvertEventToTask } from '@/hooks/useCalendars';
+import { useCalendars, useCreateCalendar, useUpdateCalendar, useDeleteCalendar, useGoogleAuthUrl, useMicrosoftAuthUrl, useMicrosoftAdminConsent, useSyncCalendar, useConvertEventToTask } from '@/hooks/useCalendars';
 import { eventToTaskDefaults } from '@/lib/eventToTaskDefaults';
 import { ApiRequestError } from '@/lib/api';
 import type { Calendar, CalendarEvent, Task } from '@/types';
@@ -21,6 +21,7 @@ export function CalendarsPage() {
   const deleteCalendar = useDeleteCalendar();
   const googleAuth = useGoogleAuthUrl();
   const microsoftAuth = useMicrosoftAuthUrl();
+  const microsoftAdminConsent = useMicrosoftAdminConsent();
   const syncCalendar = useSyncCalendar();
   const convertEvent = useConvertEventToTask();
 
@@ -50,6 +51,10 @@ export function CalendarsPage() {
       setBanner(`Microsoft connection failed: ${searchParams.get('microsoft-error')}`);
       setSearchParams({}, { replace: true });
     }
+    if (searchParams.get('admin-consent') === 'true') {
+      setBanner('Admin consent granted! Users in the organization can now connect their Microsoft calendars.');
+      setSearchParams({}, { replace: true });
+    }
   }, [searchParams, setSearchParams]);
 
   function handleConnectGoogle() {
@@ -62,6 +67,14 @@ export function CalendarsPage() {
 
   function handleConnectMicrosoft() {
     microsoftAuth.mutate(undefined, {
+      onSuccess: (data) => {
+        window.location.href = data.url;
+      },
+    });
+  }
+
+  function handleAdminConsent() {
+    microsoftAdminConsent.mutate(undefined, {
       onSuccess: (data) => {
         window.location.href = data.url;
       },
@@ -142,6 +155,14 @@ export function CalendarsPage() {
           disabled={microsoftAuth.isPending}
         >
           {microsoftAuth.isPending ? 'Connecting...' : 'Connect Microsoft'}
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={handleAdminConsent}
+          disabled={microsoftAdminConsent.isPending}
+          title="Grant org-wide access so non-admin users can connect their Exchange calendars"
+        >
+          {microsoftAdminConsent.isPending ? 'Loading...' : 'MS Admin Consent'}
         </Button>
         <Button onClick={() => setShowCreate(true)}>Add Calendar</Button>
       </div>

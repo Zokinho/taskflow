@@ -1,5 +1,15 @@
 const SCOPES = ["Calendars.Read", "offline_access", "User.Read"];
 
+export function getMicrosoftAdminConsentUrl(state: string): string {
+  const params = new URLSearchParams({
+    client_id: process.env.MICROSOFT_CLIENT_ID || "",
+    redirect_uri: process.env.MICROSOFT_REDIRECT_URI || "",
+    state,
+    scope: SCOPES.join(" "),
+  });
+  return `https://login.microsoftonline.com/common/adminconsent?${params}`;
+}
+
 export function getMicrosoftAuthUrl(state: string): string {
   const params = new URLSearchParams({
     client_id: process.env.MICROSOFT_CLIENT_ID || "",
@@ -8,7 +18,7 @@ export function getMicrosoftAuthUrl(state: string): string {
     scope: SCOPES.join(" "),
     response_mode: "query",
     state,
-    prompt: "consent",
+    prompt: "select_account",
   });
   return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params}`;
 }

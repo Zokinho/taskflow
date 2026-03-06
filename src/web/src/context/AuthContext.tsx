@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY } from '@/lib/constants';
 import type { User, AuthResponse } from '@/types';
@@ -27,6 +28,7 @@ function clearAuth() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,10 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string, timezone?: string) => {
+    queryClient.clear();
     const data = await api.post<AuthResponse>('/auth/login', { email, password, timezone });
     saveAuth(data);
     setUser(data.user);
-  }, []);
+  }, [queryClient]);
 
   const updateUser = useCallback(async (data: { name?: string; timezone?: string; preferences?: Record<string, unknown> }) => {
     const updated = await api.patch<User>('/auth/me', data);
@@ -56,8 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     clearAuth();
+    queryClient.clear();
     setUser(null);
-  }, []);
+  }, [queryClient]);
 
   return (
     <AuthContext.Provider value={{ user, isAdmin: user?.role === 'ADMIN', loading, login, logout, updateUser }}>

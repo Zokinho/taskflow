@@ -5,7 +5,7 @@ import { prisma } from "../../lib/prisma";
 import { asyncHandler, AppError } from "../middleware/errorHandler";
 import { authenticate, AuthRequest } from "../middleware/auth";
 import { getAuthUrl, exchangeCode } from "../../services/google-auth";
-import { getMicrosoftAuthUrl, exchangeMicrosoftCode } from "../../services/microsoft-auth";
+import { getMicrosoftAuthUrl, getMicrosoftAdminConsentUrl, exchangeMicrosoftCode } from "../../services/microsoft-auth";
 import { syncCalendar } from "../../services/calendar-sync";
 
 const router = Router();
@@ -18,11 +18,11 @@ const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 const createCalendarSchema = z.object({
   provider: z.enum(["GOOGLE", "MICROSOFT", "EXCHANGE", "PROTON_ICS"]),
   name: z.string().min(1).max(200),
-  externalId: z.string().max(500).optional(),
-  accessToken: z.string().optional(),
-  refreshToken: z.string().optional(),
-  icsUrl: z.string().url().optional(),
-  color: z.string().max(20).optional(),
+  externalId: z.string().max(500).nullable().optional(),
+  accessToken: z.string().nullable().optional(),
+  refreshToken: z.string().nullable().optional(),
+  icsUrl: z.string().url().nullable().optional(),
+  color: z.string().max(20).nullable().optional(),
 });
 
 const updateCalendarSchema = z.object({
@@ -176,11 +176,43 @@ router.get(
   })
 );
 
+// GET /calendars/microsoft/admin-consent-url — Generate admin consent URL
+router.get(
+  "/microsoft/admin-consent-url",
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const authReq = req as AuthRequest;
+
+    const state = jwt.sign(
+      { sub: authReq.userId!, purpose: "microsoft-admin-consent" },
+      JWT_SECRET,
+      { expiresIn: "10m" }
+    );
+
+    const url = getMicrosoftAdminConsentUrl(state);
+    res.json({ url });
+  })
+);
+
 // GET /calendars/microsoft/callback — Microsoft redirects here (public, no JWT auth)
 router.get(
   "/microsoft/callback",
   asyncHandler(async (req, res) => {
-    const { code, state, error, error_description } = req.query;
+    const { code, state, error, error_description, admin_consent } = req.query;
+
+    // Handle admin consent callback
+    if (admin_consent === "True" && state) {
+      try {
+        const payload = jwt.verify(String(state), JWT_SECRET) as { sub: string; purpose: string };
+        if (payload.purpose !== "microsoft-admin-consent") {
+          throw new Error("wrong purpose");
+        }
+      } catch {
+        // Still redirect with success — consent was granted regardless of state validity
+      }
+      res.redirect(`${FRONTEND_URL}/calendars?admin-consent=true`);
+      return;
+    }
 
     if (error) {
       const msg = error_description || error;

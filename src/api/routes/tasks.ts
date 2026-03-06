@@ -13,13 +13,13 @@ router.use(authenticate);
 
 const createTaskSchema = z.object({
   title: z.string().min(1).max(500),
-  description: z.string().max(5000).optional(),
+  description: z.string().max(5000).nullable().optional(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
-  dueDate: z.coerce.date().optional(),
-  scheduledStart: z.coerce.date().optional(),
-  scheduledEnd: z.coerce.date().optional(),
-  estimatedMins: z.number().int().positive().optional(),
-  notes: z.string().max(10000).optional(),
+  dueDate: z.coerce.date().nullable().optional(),
+  scheduledStart: z.coerce.date().nullable().optional(),
+  scheduledEnd: z.coerce.date().nullable().optional(),
+  estimatedMins: z.number().int().positive().nullable().optional(),
+  notes: z.string().max(10000).nullable().optional(),
   tags: z.array(z.string().max(100)).max(20).optional(),
 });
 

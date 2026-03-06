@@ -58,6 +58,12 @@ export function useMicrosoftAuthUrl() {
   });
 }
 
+export function useMicrosoftAdminConsent() {
+  return useMutation({
+    mutationFn: () => api.get<{ url: string }>('/calendars/microsoft/admin-consent-url'),
+  });
+}
+
 export function useSyncCalendar() {
   const qc = useQueryClient();
   return useMutation({

@@ -322,16 +322,22 @@ async function syncMicrosoftCalendar(calendar: any): Promise<SyncResult> {
     deltaLink = result.deltaLink;
   }
 
-  // Collect series master IDs for occurrences missing subjects
+  // Build map of series master subjects from occurrences that DO have subjects
+  const masterSubjects = new Map<string, string>();
+  for (const event of allEvents) {
+    if (event.subject && event.seriesMasterId) {
+      masterSubjects.set(event.seriesMasterId, event.subject);
+    }
+  }
+
+  // For masters we still don't know, fetch them from the API
   const masterIdsNeeded = new Set<string>();
   for (const event of allEvents) {
-    if (!event.subject && event.type === "occurrence" && event.seriesMasterId) {
+    if (!event.subject && event.type === "occurrence" && event.seriesMasterId && !masterSubjects.has(event.seriesMasterId)) {
       masterIdsNeeded.add(event.seriesMasterId);
     }
   }
 
-  // Batch-fetch series master subjects
-  const masterSubjects = new Map<string, string>();
   for (const masterId of masterIdsNeeded) {
     try {
       const res = await fetch(
@@ -343,7 +349,26 @@ async function syncMicrosoftCalendar(calendar: any): Promise<SyncResult> {
         if (data.subject) masterSubjects.set(masterId, data.subject);
       }
     } catch {
-      // Skip — will fall back to "(No title)"
+      // Skip — will fall back to existing title or "(No title)"
+    }
+  }
+
+  // Also look up existing titles from the DB for any remaining unknown masters
+  if (masterIdsNeeded.size > 0) {
+    const existingTitles = await prisma.calendarEvent.findMany({
+      where: {
+        calendarId: calendar.id,
+        title: { not: "(No title)" },
+        raw: { path: ["seriesMasterId"], not: Prisma.DbNull },
+      },
+      select: { title: true, raw: true },
+    });
+    for (const ev of existingTitles) {
+      const raw = ev.raw as Record<string, unknown>;
+      const mid = raw?.seriesMasterId as string | undefined;
+      if (mid && !masterSubjects.has(mid)) {
+        masterSubjects.set(mid, ev.title);
+      }
     }
   }
 

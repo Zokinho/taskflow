@@ -269,6 +269,7 @@ export function DashboardCalendar({ convertedEventIds, onConverted }: DashboardC
               eventPropGetter={eventPropGetter}
               onSelectEvent={handleSelectEvent}
               components={calendarComponents}
+              dayLayoutAlgorithm="no-overlap"
               popup
               step={30}
               timeslots={2}

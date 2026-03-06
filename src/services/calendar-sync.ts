@@ -259,6 +259,8 @@ interface MsGraphEvent {
   start?: { dateTime: string; timeZone: string };
   end?: { dateTime: string; timeZone: string };
   isAllDay?: boolean;
+  type?: string;
+  seriesMasterId?: string;
   "@removed"?: { reason: string };
 }
 
@@ -320,6 +322,31 @@ async function syncMicrosoftCalendar(calendar: any): Promise<SyncResult> {
     deltaLink = result.deltaLink;
   }
 
+  // Collect series master IDs for occurrences missing subjects
+  const masterIdsNeeded = new Set<string>();
+  for (const event of allEvents) {
+    if (!event.subject && event.type === "occurrence" && event.seriesMasterId) {
+      masterIdsNeeded.add(event.seriesMasterId);
+    }
+  }
+
+  // Batch-fetch series master subjects
+  const masterSubjects = new Map<string, string>();
+  for (const masterId of masterIdsNeeded) {
+    try {
+      const res = await fetch(
+        `https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(masterId)}?$select=subject`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+      if (res.ok) {
+        const data = (await res.json()) as { subject?: string };
+        if (data.subject) masterSubjects.set(masterId, data.subject);
+      }
+    } catch {
+      // Skip — will fall back to "(No title)"
+    }
+  }
+
   for (const event of allEvents) {
     if (!event.id) continue;
 
@@ -333,7 +360,10 @@ async function syncMicrosoftCalendar(calendar: any): Promise<SyncResult> {
     const endTime = parseMicrosoftEventTime(event.end);
     if (!startTime || !endTime) continue;
 
-    const title = event.subject || "(No title)";
+    // Use subject, or look up from series master for occurrences, or fall back
+    const title = event.subject
+      || (event.seriesMasterId && masterSubjects.get(event.seriesMasterId))
+      || "(No title)";
     const result = await upsertEvent(calendar.id, event.id, {
       title,
       description: event.bodyPreview || null,

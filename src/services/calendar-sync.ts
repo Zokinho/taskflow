@@ -68,9 +68,14 @@ async function upsertEvent(
   });
 
   if (existing) {
+    // Preserve existing title if sync returns "(No title)" but we had a real one
+    const data = { ...eventData };
+    if (data.title === "(No title)" && existing.title && existing.title !== "(No title)") {
+      data.title = existing.title;
+    }
     await prisma.calendarEvent.update({
       where: { id: existing.id },
-      data: eventData,
+      data,
     });
     return "updated";
   } else {
@@ -356,9 +361,11 @@ async function fetchMicrosoftEventsFullSync(
   const endDateTime = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString();
 
   // Use calendarView/delta for initial sync to get a deltaLink for future syncs
+  // $select ensures delta responses always include the fields we need
   const url =
     `https://graph.microsoft.com/v1.0/me/calendarView/delta` +
-    `?startDateTime=${startDateTime}&endDateTime=${endDateTime}`;
+    `?startDateTime=${startDateTime}&endDateTime=${endDateTime}` +
+    `&$select=id,subject,bodyPreview,start,end,isAllDay,location`;
 
   return fetchMicrosoftEvents(accessToken, url);
 }

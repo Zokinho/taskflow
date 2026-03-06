@@ -14,7 +14,7 @@ interface InputProps {
 export function Input({ label, type = 'text', value, onChange, error, placeholder, required, autoFocus, disabled, className = '' }: InputProps) {
   return (
     <div className={className}>
-      {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
+      {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}{required && <span className="text-red-400 ml-0.5">*</span>}</label>}
       <input
         type={type}
         value={value}
